@@ -663,6 +663,12 @@ body {
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         border-bottom: 2px solid var(--massy-blue);
         -webkit-overflow-scrolling: touch;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        padding: 8px !important;
+        gap: 5px !important;
+        height: auto !important;
     }
 
     .cv-container {

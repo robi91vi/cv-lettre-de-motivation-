@@ -11,67 +11,13 @@
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=3">
+    <link rel="stylesheet" href="styles.css?v=4">
     <link rel="stylesheet" href="pdf_modal.css?v=2">
     <link rel="stylesheet" href="print_styles.css?v=2">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        /* [█ MOBILE OVERRIDES - priorité absolue sur styles.css] */
-        @media screen and (max-width: 850px) {
-
-            html,
-            body {
-                overflow-x: hidden !important;
-                max-width: 100vw !important;
-            }
-
-            body {
-                padding: 60px 0 0 0 !important;
-                margin: 0 !important;
-                align-items: flex-start !important;
-            }
-
-            #document-workspace {
-                width: 100vw !important;
-                max-width: 100vw !important;
-                display: block !important;
-                transform: none !important;
-                overflow: hidden !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-
-            #document-workspace>div[class="no-print"] {
-                display: none !important;
-            }
-
-            .toolbar {
-                width: 100vw !important;
-                left: 0 !important;
-                border-radius: 0 !important;
-                box-sizing: border-box !important;
-                display: flex !important;
-                flex-wrap: wrap !important;
-                justify-content: center !important;
-                gap: 5px !important;
-                padding: 10px !important;
-                height: auto !important;
-                min-height: 50px !important;
-            }
-        }
-
-        /* Standard Toolbar Desktop */
-        .toolbar {
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 12px !important;
-            white-space: nowrap !important;
-        }
-
-        /* Force apply mask bypassing Chrome cache issues */
+        /* [FORCE FIXED ASSETS] */
         .section-bar {
             -webkit-mask-image: var(--title-mask, none) !important;
             mask-image: var(--title-mask, none) !important;
@@ -81,7 +27,6 @@
             mask-repeat: no-repeat !important;
         }
 
-        /* Force evaluate calc() and padding bypass cache */
         .footer-bar {
             padding: var(--footer-pt, 8px) 24px !important;
             align-items: center !important;
