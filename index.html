@@ -1,0 +1,3682 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CV Carole Jacquelin - Interactive Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="stylesheet" href="pdf_modal.css?v=2">
+    <link rel="stylesheet" href="print_styles.css?v=2">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* [█ MOBILE OVERRIDES - priorité absolue sur styles.css] */
+        @media screen and (max-width: 850px) {
+
+            html,
+            body {
+                overflow-x: hidden !important;
+                max-width: 100vw !important;
+            }
+
+            body {
+                padding: 60px 0 0 0 !important;
+                margin: 0 !important;
+                align-items: flex-start !important;
+            }
+
+            #document-workspace {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                display: block !important;
+                transform: none !important;
+                overflow: hidden !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            #document-workspace>div[class="no-print"] {
+                display: none !important;
+            }
+
+            .toolbar {
+                width: 100vw !important;
+                left: 0 !important;
+                border-radius: 0 !important;
+                box-sizing: border-box !important;
+            }
+        }
+
+        <style>
+
+        /* Force apply mask bypassing Chrome cache issues */
+        .section-bar {
+            -webkit-mask-image: var(--title-mask, none) !important;
+            mask-image: var(--title-mask, none) !important;
+            -webkit-mask-size: 100% 100% !important;
+            mask-size: 100% 100% !important;
+            -webkit-mask-repeat: no-repeat !important;
+            mask-repeat: no-repeat !important;
+        }
+
+        /* Force evaluate calc() and padding bypass cache */
+        .footer-bar {
+            padding: var(--footer-pt, 8px) 24px !important;
+            align-items: center !important;
+        }
+
+        .profile-photo-container {
+            position: absolute !important;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            margin: 0 !important;
+            z-index: 10;
+        }
+
+        .profile-photo-spacer {
+            height: 200px;
+            width: 100%;
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+
+        /* === DIRECT BLOCK CONTROLS (NEW) === */
+        .block-resize-handle {
+            position: absolute;
+            background: #466EFF;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            display: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .block-selected .block-resize-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .block-selected {
+            box-shadow: 0 0 0 3px #466EFF, 0 15px 45px rgba(0, 0, 0, 0.2) !important;
+            z-index: 20000 !important;
+            /* Toujours au premier plan quand sélectionné */
+        }
+
+        .block-selected .block-resize-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Désactiver les transitions pendant le drag pour la stabilité */
+        .resizing-active {
+            transition: none !important;
+            user-select: none !important;
+        }
+
+        /* Forcer l'alignement à gauche pendant et après adaptation */
+        .experience-item,
+        .added-text-block {
+            text-align: left !important;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .block-resize-handle:hover {
+            background: #142355;
+            transform: scale(1.1);
+        }
+
+        /* Largeur (Right) */
+        .handle-width {
+            right: -10px;
+            top: 50%;
+            width: 12px;
+            height: 40px;
+            border-radius: 6px;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
+        .handle-width::after {
+            content: "\f337";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            color: white;
+            font-size: 0.6rem;
+        }
+
+        /* Marges (Top/Bottom) */
+        .handle-margin {
+            left: 50%;
+            width: 40px;
+            height: 12px;
+            border-radius: 6px;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        /* Zone de saisie élargie pour les poignées */
+        .block-resize-handle::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+        }
+
+        .handle-margin-top {
+            top: -10px;
+        }
+
+        .handle-margin-bottom {
+            bottom: -10px;
+        }
+
+        .handle-margin::after {
+            content: "\f338";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            color: white;
+            font-size: 0.7rem;
+        }
+
+        /* État actif pendant le redimensionnement */
+        .resizing-active-handle {
+            background: #142355 !important;
+            box-shadow: 0 0 15px rgba(70, 110, 255, 0.6) !important;
+        }
+    </style>
+</head>
+
+<body><button class="toolbar-toggle no-print active" id="master-toggle" onclick="toggleToolbar()"
+        title="Afficher/Masquer les outils"><i class="fas fa-cog"></i></button>
+    <div class="toolbar no-print" id="main-toolbar">
+        <div class="zoom-controls"><button onclick="zoomOut()" class="btn btn-sm" title="Zoom Arrière"
+                style="background:#f0f0f0; color:#142355; border:1px solid rgba(20,35,85,0.1); border-radius:10px;"><i
+                    class="fas fa-minus"></i></button><span id="zoom-level"
+                style="font-weight:700; color:#142355; min-width:45px;">100%</span><button onclick="zoomIn()"
+                class="btn btn-sm" title="Zoom Avant"
+                style="background:#f0f0f0; color:#142355; border:1px solid rgba(20,35,85,0.1); border-radius:10px;"><i
+                    class="fas fa-plus"></i></button><button onclick="resetZoom()" class="btn btn-sm"
+                title="Réinitialiser zoom"
+                style="background:#eef2ff; color:#466eff; border:1px solid rgba(70,110,255,0.1); border-radius:10px;"><i
+                    class="fas fa-compress"></i></button></div>
+        <div class="divider"></div>
+        <div class="history-controls" style="display:flex; gap:5px;"><button id="undo-btn" onclick="undo()"
+                class="btn btn-sm" title="Annuler (Ctrl+Z)" disabled style="opacity:0.5; cursor:not-allowed;"><i
+                    class="fas fa-undo"></i></button><button id="redo-btn" onclick="redo()" class="btn btn-sm"
+                title="Rétablir (Ctrl+Y)" disabled style="opacity:0.5; cursor:not-allowed;"><i
+                    class="fas fa-redo"></i></button></div>
+        <div class="divider"></div>
+        <div class="text-tools" style="position:relative;"><button onclick="toggleTextMenu()" class="btn"
+                id="text-menu-btn" style="background:#f8faff; color:#142355; border:1px solid #e0e6ff;"><i
+                    class="fas fa-font"></i>Texte </button>
+            <div id="text-menu" style="display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+ background:white;
+        border-radius:16px;
+        box-shadow:0 10px 40px rgba(20, 35, 85, 0.2);
+        min-width:220px;
+        padding:15px;
+        z-index:2000;
+        border:1px solid rgba(20, 35, 85, 0.08);
+        ">
+
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px;"><button
+                        onmousedown="event.preventDefault()" onclick="formatText('bold')" class="btn btn-sm"
+                        title="Gras" style="height:32px; width:100%; border:1px solid #eee;"><i
+                            class="fas fa-bold"></i></button><button onmousedown="event.preventDefault()"
+                        onclick="formatText('italic')" class="btn btn-sm" title="Italique"
+                        style="height:32px; width:100%; border:1px solid #eee;"><i
+                            class="fas fa-italic"></i></button><button onmousedown="event.preventDefault()"
+                        onclick="formatText('justifyFull')" class="btn btn-sm" title="Justifier"
+                        style="height:32px; width:100%; border:1px solid #eee;"><i
+                            class="fas fa-align-justify"></i></button></div>
+                <div
+                    style="display:flex; flex-direction: column; gap:8px; border-top: 1px solid #f0f0f0; padding-top:10px;">
+                    <div style="display:flex; align-items:center; justify-content: space-between;"><span
+                            style="font-size:0.75rem; font-weight:700; color:#142355;">Couleur</span><input type="color"
+                            onchange="formatText('foreColor', this.value)"
+                            style="border:none; width:36px; height:20px; padding:0; cursor:pointer; background:none;">
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content: space-between;"><span
+                            style="font-size:0.75rem; font-weight:700; color:#142355;">Surligner</span><input
+                            type="color" value="#ffff00" onchange="formatText('hiliteColor', this.value)"
+                            style="border:none; width:36px; height:20px; padding:0; cursor:pointer; background:none;">
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content: space-between;"><span
+                            style="font-size:0.75rem; font-weight:700; color:#142355;">Taille</span>
+                        <div style="display:flex; gap:6px;"><button onmousedown="event.preventDefault()"
+                                onclick="changeFontSize(-1)" class="btn btn-sm"
+                                style="width:36px; height:26px; padding:0; font-size:0.75rem;">A-</button><button
+                                onmousedown="event.preventDefault()" onclick="changeFontSize(1)" class="btn btn-sm"
+                                style="width:36px; height:26px; padding:0; font-size:0.85rem;">A+</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;align-items:center;gap:5px;"><input type="color" id="color-picker" value="#142355"
+                onchange="changeColor(this.value)"
+                style="border:none;width:30px;height:30px;padding:0;cursor:pointer;"><label for="color-picker"
+                style="font-size:0.8rem;font-weight:bold;">Couleur</label></div>
+        <div class="divider"></div><button id="drag-mode-btn" onclick="toggleDragMode()" class="btn btn-secondary"
+            title="Déplacer librement les éléments"><i class="fas fa-arrows-alt"></i>Mode Déplacement </button><button
+            id="grid-snap-btn" onclick="toggleGridSnap()" class="btn"
+            title="Activer le snap sur grille pour un alignement precis"
+            style="display:none; background:#eef2ff; color:#142355; font-size:0.82rem; border-radius:50px; border:1px solid rgba(20,35,85,0.1);"><i
+                class="fas fa-th"></i>Grille </button><button onclick="alignAllBlocks()" class="btn"
+            title="Aligner tous les blocs à gauche (0 décalage)"
+            style="background:#f8faff; color:#142355; border:1px solid #e0e6ff; font-size:0.82rem; border-radius:50px;"><i
+                class="fas fa-align-left"></i>Aligner </button>
+        <div class="divider"></div><button onclick="openPdfModal()" class="btn btn-primary"
+            style="background:#142355; color:white; font-weight:700; height:32px; padding:0 15px; border-radius:10px;"><i
+                class="fas fa-file-pdf"></i>PDF </button>
+        <div class="divider"></div>
+        <!-- PHOTO SETTINGS -->
+        <div style="position:relative;"><button onclick="togglePhotoMenu(event || window.event)" class="btn"
+                id="photo-menu-btn"
+                style="background:#f0f0f0; color:#142355; font-weight:600; border-radius:50px; font-size:0.85rem;"><i
+                    class="fas fa-image"></i>Photo </button>
+            <div id="photo-menu" style="display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+ background:white;
+        border-radius:16px;
+        box-shadow:0 10px 40px rgba(20, 35, 85, 0.2);
+        min-width:260px;
+        padding:20px;
+        z-index:2000;
+        border:1px solid rgba(20, 35, 85, 0.08);
+        ">
+
+                <h3
+                    style="font-size:0.9rem; margin-top:0; margin-bottom:18px; color:#142355; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-cog" style="color:#6B7FAB; font-size:0.8rem;"></i>Options Photo
+                </h3>
+                <!-- SIZE CONTROL -->
+                <div style="margin-bottom:22px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span
+                            style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px;">Taille</span><span
+                            id="photo-size-val"
+                            style="font-size:0.75rem; font-weight:700; color:#466EFF; background:#eef2ff; padding:2px 10px; border-radius:12px;">180px</span>
+                    </div><input type="range" min="80" max="300" value="180" oninput="setPhotoSize(this.value)"
+                        style="width:100%; accent-color:#466EFF; cursor:pointer; height:6px; border-radius:3px;">
+                </div>
+                <!-- SHAPE CONTROL -->
+                <div style="margin-bottom:22px;"><span
+                        style="font-size:0.75rem; font-weight:700; color:#142355; display:block; margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">Forme</span>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"><button
+                            onclick="setPhotoShape('round')" class="btn btn-sm"
+                            style="font-size:0.75rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:flex-start; padding-left:12px;"><i
+                                class="fas fa-circle" style="font-size:0.6rem; color:#466EFF; width:15px;"></i>Rond
+                        </button><button onclick="setPhotoShape('oval')" class="btn btn-sm"
+                            style="font-size:0.75rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:flex-start; padding-left:12px;"><i
+                                class="fas fa-ellipsis-v" style="font-size:0.6rem; color:#466EFF; width:15px;"></i>Ovale
+                        </button><button onclick="setPhotoShape('square')" class="btn btn-sm"
+                            style="font-size:0.75rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:flex-start; padding-left:12px;"><i
+                                class="fas fa-square" style="font-size:0.6rem; color:#466EFF; width:15px;"></i>Carré
+                        </button><button onclick="setPhotoShape('rect')" class="btn btn-sm"
+                            style="font-size:0.75rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:flex-start; padding-left:12px;"><i
+                                class="fas fa-columns" style="font-size:0.6rem; color:#466EFF; width:15px;"></i>Rect.
+                        </button><button onclick="setPhotoShape('diamond')" class="btn btn-sm"
+                            style="font-size:0.75rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:flex-start; padding-left:12px;"><i
+                                class="fas fa-square"
+                                style="font-size:0.6rem; color:#466EFF; width:15px; transform:rotate(45deg);"></i>Losange
+                        </button></div>
+                </div>
+                <!-- VISIBILITY TOGGLE -->
+                <div style="border-top: 1px solid #f0f0f0; padding-top: 18px;"><button onclick="togglePhotoVisibility()"
+                        class="btn" id="toggle-photo-btn"
+                        style="font-size:0.8rem; background:#fff1f1; color:#FF6B4A; border:1px solid rgba(255,107,74,0.3); border-radius:12px; width:100%; padding:10px; white-space:nowrap;"><i
+                            class="fas fa-eye-slash"></i>Masquer la photo </button></div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <!-- SIDEBAR SETTINGS -->
+        <div style="position:relative;"><button onclick="toggleSidebarMenu(event)" class="btn" id="sidebar-menu-btn"
+                style="background:#f0f0f0; color:#142355; font-weight:600; border-radius:50px; font-size:0.85rem;"><i
+                    class="fas fa-shapes"></i>Forme Bleue </button>
+            <div id="sidebar-menu" style="display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+ background:white;
+        border-radius:16px;
+        box-shadow:0 10px 40px rgba(20, 35, 85, 0.2);
+        min-width:300px;
+        padding:20px;
+        z-index:2000;
+        border:1px solid rgba(20, 35, 85, 0.08);
+        max-height:400px;
+        overflow-y:auto;
+        text-align:left;
+        ">
+
+                <h3
+                    style="font-size:0.9rem; margin-top:0; margin-bottom:18px; color:#142355; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-sliders-h" style="color:#6B7FAB; font-size:0.8rem;"></i>Ajuster la forme
+                </h3>
+                <!-- WIDTH CONTROL -->
+                <div style="margin-bottom:22px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span
+                            style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px;">Largeur</span><span
+                            id="sidebar-width-val"
+                            style="font-size:0.75rem; font-weight:700; color:#466EFF; background:#eef2ff; padding:2px 10px; border-radius:12px;">46%</span>
+                    </div><input type="range" id="sidebar-width-range" min="20" max="80" value="46"
+                        oninput="setSidebarWidth(this.value)"
+                        style="width:100%; accent-color:#466EFF; cursor:pointer; height:6px; border-radius:3px;">
+                </div>
+                <!-- SHAPES GRID -->
+                <div><span
+                        style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:10px;">Forme
+                        / Découpe</span>
+                    <div id="sidebar-shapes-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                        <!-- Filled dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <!-- FOOTER SETTINGS -->
+        <div style="position:relative;"><button onclick="toggleFooterMenu(event)" class="btn" id="footer-menu-btn"
+                style="background:#f0f0f0; color:#142355; font-weight:600; border-radius:50px; font-size:0.85rem;"><i
+                    class="fas fa-shoe-prints"></i>Pied de Page </button>
+            <div id="footer-menu" style="display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+ background:white;
+        border-radius:16px;
+        box-shadow:0 10px 40px rgba(20, 35, 85, 0.2);
+        min-width:300px;
+        padding:20px;
+        z-index:2000;
+        border:1px solid rgba(20, 35, 85, 0.08);
+        max-height:400px;
+        overflow-y:auto;
+        text-align:left;
+        ">
+
+                <h3
+                    style="font-size:0.9rem; margin-top:0; margin-bottom:18px; color:#142355; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-arrows-alt-v" style="color:#6B7FAB; font-size:0.8rem;"></i>Ajuster le
+                    pied de page
+                </h3>
+                <!-- HEIGHT CONTROL -->
+                <div style="margin-bottom:22px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span
+                            style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px;">Hauteur
+                            (Épaisseur)</span><span id="footer-height-val"
+                            style="font-size:0.75rem; font-weight:700; color:#466EFF; background:#eef2ff; padding:2px 10px; border-radius:12px;">8px</span>
+                    </div><input type="range" id="footer-height-range" min="8" max="150" value="8"
+                        oninput="setFooterHeight(this.value)"
+                        style="width:100%; accent-color:#466EFF; cursor:pointer; height:6px; border-radius:3px;">
+                </div>
+                <!-- SHAPES GRID -->
+                <div><span
+                        style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:10px;">Forme
+                        / Découpe</span>
+                    <div id="footer-shapes-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                        <!-- Filled dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <!-- TITLE SETTINGS -->
+        <div style="position:relative;"><button onclick="toggleTitleMenu(event)" class="btn" id="title-menu-btn"
+                style="background:#f0f0f0; color:#142355; font-weight:600; border-radius:50px; font-size:0.85rem;"><i
+                    class="fas fa-heading"></i>Titres </button>
+            <div id="title-menu" style="display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+ background:white;
+        border-radius:16px;
+        box-shadow:0 10px 40px rgba(20, 35, 85, 0.2);
+        min-width:300px;
+        padding:20px;
+        z-index:2000;
+        border:1px solid rgba(20, 35, 85, 0.08);
+        max-height:400px;
+        overflow-y:auto;
+        text-align:left;
+        ">
+
+                <h3
+                    style="font-size:0.9rem; margin-top:0; margin-bottom:18px; color:#142355; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-grip-lines" style="color:#6B7FAB; font-size:0.8rem;"></i>Ajuster
+                    les titres
+                </h3>
+                <!-- HEIGHT CONTROL -->
+                <div style="margin-bottom:22px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span
+                            style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px;">Hauteur
+                            (Épaisseur)</span><span id="title-height-val"
+                            style="font-size:0.75rem; font-weight:700; color:#466EFF; background:#eef2ff; padding:2px 10px; border-radius:12px;">9px</span>
+                    </div><input type="range" id="title-height-range" min="4" max="40" value="9"
+                        oninput="setTitleHeight(this.value)"
+                        style="width:100%; accent-color:#466EFF; cursor:pointer; height:6px; border-radius:3px;">
+                </div>
+                <!-- SHAPES GRID -->
+                <div><span
+                        style="font-size:0.75rem; font-weight:700; color:#142355; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:10px;">Forme
+                        / Découpe</span>
+                    <div id="title-shapes-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                        <!-- Filled dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <!-- ADD ELEMENT DROPDOWN -->
+        <div style="position:relative;"><button onclick="toggleAddMenu(event)" class="btn" id="add-menu-btn"
+                style="background:var(--massy-green); color:white; font-weight:700; border-radius:50px; font-size:0.85rem;"><i
+                    class="fas fa-plus-circle"></i>Ajouter </button>
+            <div id="add-menu" style="display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%);
+ background:white;
+        border-radius:10px;
+        box-shadow:0 6px 24px rgba(20, 35, 85, 0.18);
+        min-width:210px;
+        overflow:hidden;
+        z-index:2000;
+        ">
+                <div
+                    style="padding: 8px 16px; background: #f8faff; font-size: 0.7rem; font-weight: 700; color: #466EFF; letter-spacing: 1px;">
+                    AJOUTER AU CV</div><button onclick="addElement('experience', 'cv')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        border-bottom:1px solid #f0f0f0;
+        ">
+                    <i class="fas fa-briefcase" style="color:#466EFF;width:18px;"></i>Expérience
+                </button><button onclick="addElement('text', 'cv')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        border-bottom:1px solid #f0f0f0;
+        ">
+                    <i class="fas fa-align-left" style="color:#FF6B4A;width:18px;"></i>Bloc de texte
+                </button><button onclick="addElement('section', 'cv')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        border-bottom:1px solid #f0f0f0;
+        ">
+                    <i class="fas fa-grip-lines" style="color:#142355;width:18px;"></i>Titre de
+                    section </button><button onclick="addElement('photo', 'cv')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        ">
+                    <i class="fas fa-image" style="color:#00DC78;width:18px;"></i>Photo / Image
+                </button>
+                <div
+                    style="padding: 8px 16px; background: #f8faff; font-size: 0.7rem; font-weight: 700; color: #466EFF; letter-spacing: 1px; border-top: 1px solid #e0e6ff;">
+                    AJOUTER A LA LETTRE</div><button onclick="addElement('text', 'cl')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        border-bottom:1px solid #f0f0f0;
+        ">
+                    <i class="fas fa-align-left" style="color:#FF6B4A;width:18px;"></i>Bloc de texte
+                </button><button onclick="addElement('section', 'cl')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        border-bottom:1px solid #f0f0f0;
+        ">
+                    <i class="fas fa-grip-lines" style="color:#142355;width:18px;"></i>Titre de
+                    section </button><button onclick="addElement('photo', 'cl')" style="display:flex;align-items:center;gap:10px;
+ width:100%;
+        padding:10px 16px;
+        border:none;
+        background:none;
+        cursor:pointer;
+        font-size:0.85rem;
+        color:#142355;
+        font-family:'Outfit',
+        sans-serif;
+        ">
+                    <i class="fas fa-image" style="color:#00DC78;width:18px;"></i>Photo / Image
+                </button>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <!-- ICON COLORS MENU -->
+        <div style="position:relative;"><button onclick="toggleIconMenu(event)" class="btn" id="icon-menu-btn"
+                style="background:#f0f0f0; color:#142355; font-weight:600; border-radius:50px; font-size:0.85rem;"><i
+                    class="fas fa-palette"></i>Icônes </button>
+            <div id="icon-menu" style="display:none; position:absolute; top:calc(100% + 10px); right:0;
+ background:white;
+        border-radius:16px;
+        box-shadow:0 10px 40px rgba(20, 35, 85, 0.2);
+        min-width:280px;
+        padding:20px;
+        z-index:2000;
+        border:1px solid rgba(20, 35, 85, 0.08);
+        max-height:500px;
+        overflow-y:auto;
+        text-align:left;
+        ">
+
+                <h3
+                    style="font-size:0.9rem; margin-top:0; margin-bottom:18px; color:#142355; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-palette" style="color:#6B7FAB; font-size:0.8rem;"></i>Couleur des icônes
+                </h3>
+                <!-- Sidebar icon groups -->
+                <div
+                    style="margin-bottom:14px; font-size:0.7rem; font-weight:700; color:#466EFF; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                    Barre latérale</div>
+                <!-- CONTACT -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-contact"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(0,220,120,0.12); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-envelope" style="font-size:0.7rem; color:var(--icon-contact);"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Contact</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;"><input type="color" id="color-contact"
+                            value="#00DC78" oninput="setIconColor('contact', this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="resetIconColor('contact', '#00DC78')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button></div>
+                </div>
+                <!-- LANGUES -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-langues"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(130,155,250,0.12); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-earth-americas" style="font-size:0.7rem; color:var(--icon-langues);"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Langues</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;"><input type="color" id="color-langues"
+                            value="#829BFA" oninput="setIconColor('langues', this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="resetIconColor('langues', '#829BFA')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button></div>
+                </div>
+                <!-- COMPÉTENCES -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-competences"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(255,107,74,0.12); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-check-circle" style="font-size:0.7rem; color:var(--icon-competences);"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Compétences</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="color" id="color-competences" value="#FF6B4A"
+                            oninput="setIconColor('competences', this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="resetIconColor('competences', '#FF6B4A')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button>
+                    </div>
+                </div>
+                <!-- FORMATION -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-formation"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(255,205,50,0.12); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-graduation-cap" style="font-size:0.7rem; color:var(--icon-formation);"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Formation</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="color" id="color-formation" value="#FFCD32"
+                            oninput="setIconColor('formation', this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="resetIconColor('formation', '#FFCD32')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button>
+                    </div>
+                </div>
+                <!-- Logos Expériences -->
+                <div
+                    style="margin-bottom:14px; font-size:0.7rem; font-weight:700; color:#466EFF; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                    Logos Expériences</div>
+                <!-- EXP 0 -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-exp-0"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(70,110,255,0.1); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-building" style="font-size:0.7rem; color:#466EFF;"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Expérience
+                            1</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="color" id="exp-color-picker-0" value="#466EFF"
+                            oninput="setExpColorByIndex(0, this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="setExpColorByIndex(0,'#466EFF')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button>
+                    </div>
+                </div>
+                <!-- EXP 1 -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-exp-1"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(0,220,120,0.1); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-industry" style="font-size:0.7rem; color:#00DC78;"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Expérience
+                            2</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="color" id="exp-color-picker-1" value="#00DC78"
+                            oninput="setExpColorByIndex(1, this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="setExpColorByIndex(1,'#00DC78')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button>
+                    </div>
+                </div>
+                <!-- EXP 2 -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-exp-2"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(255,107,74,0.1); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-briefcase" style="font-size:0.7rem; color:#FF6B4A;"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Expérience
+                            3</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="color" id="exp-color-picker-2" value="#FF6B4A"
+                            oninput="setExpColorByIndex(2, this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="setExpColorByIndex(2,'#FF6B4A')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button>
+                    </div>
+                </div>
+                <!-- EXP 3 -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div id="preview-exp-3"
+                            style="width:26px; height:26px; border-radius:8px; background:rgba(130,155,250,0.1); display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-user-tie" style="font-size:0.7rem; color:#829BFA;"></i>
+                        </div><span style="font-size:0.82rem; font-weight:600; color:#142355;">Expérience
+                            4</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="color" id="exp-color-picker-3" value="#829BFA"
+                            oninput="setExpColorByIndex(3, this.value)"
+                            style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;"><button
+                            onclick="setExpColorByIndex(3,'#829BFA')" title="Réinitialiser"
+                            style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;"><i
+                                class="fas fa-undo"></i></button>
+                    </div>
+                </div>
+                <!-- Reset all --><button onclick="resetAllIconColors()"
+                    style="width:100%; padding:8px; background:#f8faff; border:1px solid #e0e6ff; border-radius:10px; cursor:pointer; font-size:0.78rem; font-weight:600; color:#466EFF; display:flex; align-items:center; justify-content:center; gap:6px;"><i
+                        class="fas fa-undo"></i>Tout
+                    réinitialiser </button>
+            </div>
+        </div>
+    </div>
+    <div id="document-workspace"
+        style="display:flex; justify-content: center; gap:40px; padding-bottom: 50px; transform-origin: top center; transition: transform 0.2s ease;">
+        <!-- Left Margin reserved for CV additions -->
+        <div style="width: 320px; flex-shrink: 0;" class="no-print"></div>
+        <div class="cv-container" id="cv-content">
+            <div class="sidebar">
+                <div class="profile-photo-spacer no-print"></div>
+                <div class="profile-photo-container" onclick="triggerPhotoUpload(event)"
+                    title="Cliquez pour changer la photo"><img src="https://via.placeholder.com/150" alt="Profile"
+                        id="profile-img"><input type="file" id="photo-input" accept="image/*" style="display:none;"
+                        onchange="updatePhoto(this)"></div>
+                <div class="section-container">
+                    <div class="section-title-pill">CONTACT</div>
+                    <ul class="contact-list">
+                        <li><i class="fas fa-envelope"></i><span contenteditable="true">c_jacquelin@yahoo.fr</span>
+                        </li>
+                        <li><i class="fas fa-phone"></i><span contenteditable="true">06.31.33.57.33</span></li>
+                        <li><i class="fas fa-home"></i><span contenteditable="true">3, allée des Fauvettes - 91300
+                                MASSY</span></li>
+                    </ul>
+                </div>
+                <div class="section-container">
+                    <div class="section-title-pill">LANGUES</div>
+                    <div class="languages-container">
+                        <div class="language-item"><i class="fas fa-earth-americas lang-icon"></i>
+                            <div class="lang-content">
+                                <div class="lang-info"><span class="lang-name"
+                                        contenteditable="true">Anglais</span><span class="lang-level"
+                                        contenteditable="true">Commercial</span></div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width:85%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="language-item"><i class="fas fa-earth-europe lang-icon"></i>
+                            <div class="lang-content">
+                                <div class="lang-info"><span class="lang-name"
+                                        contenteditable="true">Espagnol</span><span class="lang-level"
+                                        contenteditable="true">Scolaire</span></div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width:45%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section-container">
+                    <div class="section-title-pill">COMPÉTENCES</div>
+                    <ul class="skill-list">
+                        <li contenteditable="true"><i class="fas fa-check-circle"></i>Maitrise du pack office</li>
+                        <li contenteditable="true"><i class="fas fa-check-circle"></i>ERP Internes</li>
+                        <li contenteditable="true"><i class="fas fa-line-chart"></i>Suivi financier &amp;
+                            administratif </li>
+                        <li contenteditable="true"><i class="fas fa-star"></i>Polyvalence</li>
+                        <li contenteditable="true"><i class="fas fa-fire"></i>Animée par les challenges</li>
+                        <li contenteditable="true"><i class="fas fa-calendar-alt"></i>Organisation d'événements
+                        </li>
+                    </ul>
+                </div>
+                <div class="section-container">
+                    <div class="section-title-pill">FORMATION</div>
+                    <ul class="education-list">
+                        <li><i class="fas fa-graduation-cap"></i>
+                            <div contenteditable="true">Maitrise en École de Commerce - ICD Groupe IGS - Paris 10 -
+                                Diplôme obtenu en 1999</div>
+                        </li>
+                        <li><i class="fas fa-university"></i>
+                            <div contenteditable="true">DUT Techniques de Commercialisation - IUT - Sceaux (92) -
+                                Diplôme obtenu en 1997</div>
+                        </li>
+                        <li><i class="fas fa-certificate"></i>
+                            <div contenteditable="true">Bac G3 (commerce) - Fustel de Coulanges - Massy (91) -
+                                Diplôme obtenu en 1995</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="main-content">
+                <div class="header">
+                    <div class="header-name">
+                        <h1 contenteditable="true">CAROLE<br>JACQUELIN</h1>
+                    </div>
+                    <div class="header-job">
+                        <h2 contenteditable="true">Responsable administrative &amp;
+                            gestion</h2>
+                    </div>
+                </div>
+                <div class="section-bar">EXPÉRIENCE PROFESSIONNELLE</div>
+                <div class="experience-item" id="exp-1">
+                    <div class="job-logo" onclick="triggerLogoUpload('exp-1')" title="Cliquer pour changer le logo"
+                        style="cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-building"></i><input type="file" accept="image/*" style="display:none;"
+                            onchange="updateElementLogo(this, 'exp-1')">
+                    </div>
+                    <div class="job-content">
+                        <div class="job-header"><span class="job-title" contenteditable="true">Responsable
+                                administrative et gestion</span><span class="company" contenteditable="true">ORTEC
+                                DEPOLLUTION</span></div>
+                        <div class="job-date" contenteditable="true">Novembre 2022 - Actuellement</div>
+                        <ul class="job-details">
+                            <li contenteditable="true">Suivis financiers des projets (90 chantiers)</li>
+                            <li contenteditable="true">Clôture mensuelle de gestion de 3 secteurs (moyenne de
+                                1.935K€) </li>
+                            <li contenteditable="true">Pointages &amp;
+                                accompagnement RH de 50 personnes</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="experience-item" id="exp-2">
+                    <div class="job-logo" onclick="triggerLogoUpload('exp-2')" title="Cliquer pour changer le logo"
+                        style="cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-industry"></i><input type="file" accept="image/*" style="display:none;"
+                            onchange="updateElementLogo(this, 'exp-2')">
+                    </div>
+                    <div class="job-content">
+                        <div class="job-header"><span class="job-title" contenteditable="true">Responsable de
+                                gestion administrative</span><span class="company" contenteditable="true">HEXAGON
+                                METROLOGY</span></div>
+                        <div class="job-date" contenteditable="true">Mars 2021 - Octobre 2022</div>
+                        <ul class="job-details">
+                            <li contenteditable="true">Gestion des achats hors production</li>
+                            <li contenteditable="true">Suivi des budgets et des demandes d'achat</li>
+                            <li contenteditable="true">Gestion quotidienne et financière des services généraux,
+                                de la flotte automobile et téléphonique</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="experience-item" id="exp-3">
+                    <div class="job-logo" onclick="triggerLogoUpload('exp-3')" title="Cliquer pour changer le logo"
+                        style="cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-briefcase"></i><input type="file" accept="image/*" style="display:none;"
+                            onchange="updateElementLogo(this, 'exp-3')">
+                    </div>
+                    <div class="job-content">
+                        <div class="job-header"><span class="job-title" contenteditable="true">Responsable
+                                administrative et financière</span><span class="company" contenteditable="true">FG
+                                DESIGN - TOTANKA</span></div>
+                        <div class="job-date" contenteditable="true">Septembre 2008 - Août 2019</div>
+                        <ul class="job-details">
+                            <li contenteditable="true">Administration des factures clients et fournisseurs</li>
+                            <li contenteditable="true">Organisation administrative et fonctionnelle (nouveaux
+                                espaces de stockage, recrutement des équipes ...)</li>
+                            <li contenteditable="true">Relations clients</li>
+                            <li contenteditable="true">Responsable de stocks clients</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="experience-item">
+                    <div class="job-logo"><i class="fas fa-user-tie"></i></div>
+                    <div class="job-content">
+                        <div class="job-header"><span class="job-title" contenteditable="true">Assistante de
+                                gestion</span><span class="company" contenteditable="true">FG DESIGN</span></div>
+                        <div class="job-date" contenteditable="true">Juillet 2004 - Septembre 2008</div>
+                        <ul class="job-details">
+                            <li contenteditable="true">Gestion du parc automobile,
+                                de la téléphonie fixe et mobile,
+                                des assurances,
+                                du parc informatique et des achats groupe.</li>
+                            <li contenteditable="true">Gestion financière et analytique</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bar">
+                <div class="footer-logo" contenteditable="true">MA VILLE AVANCE</div>
+            </div>
+        </div>
+        <!-- COVER LETTER CONTAINER -->
+        <div class="cv-container" id="cl-content">
+            <div class="sidebar">
+                <div class="profile-photo-container" onclick="triggerPhotoUploadCL(event)"
+                    title="Cliquez pour changer la photo"><img src="https://via.placeholder.com/150" alt="Profile"
+                        id="profile-img-cl"><input type="file" id="photo-input-cl" accept="image/*"
+                        style="display:none;" onchange="updatePhotoCL(this)"></div>
+                <div class="section-container">
+                    <div class="section-title-pill">CONTACT</div>
+                    <ul class="contact-list">
+                        <li><i class="fas fa-envelope"></i><span contenteditable="true">c_jacquelin@yahoo.fr</span></li>
+                        <li><i class="fas fa-phone"></i><span contenteditable="true">06.31.33.57.33</span></li>
+                        <li><i class="fas fa-home"></i><span contenteditable="true">3, allée des Fauvettes -
+                                91300 MASSY</span></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="main-content">
+                <div class="header">
+                    <div class="header-name">
+                        <h1 contenteditable="true">CAROLE<br>JACQUELIN</h1>
+                    </div>
+                    <div class="header-job">
+                        <h2 contenteditable="true" style="letter-spacing:2px;">LETTRE DE MOTIVATION</h2>
+                    </div>
+                </div>
+                <div class="section-bar" contenteditable="true">OBJET : CANDIDATURE</div>
+                <div class="added-text-block" id="cl-block-1" style="margin-top: 30px; position:relative;">
+                    <div contenteditable="true"
+                        style="outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem;">
+                        Madame,
+                        Monsieur, </div>
+                </div>
+                <div class="added-text-block" id="cl-block-2" style="margin-top: 15px; position:relative;">
+                    <div contenteditable="true"
+                        style="outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem;">
+                        Actuellement responsable administrative et de gestion, je souhaite vous proposer ma
+                        candidature pour rejoindre votre entreprise. Forte de plus de 20 ans d'expérience dans
+                        la gestion
+                        administrative,
+                        financière et opérationnelle, j'ai acquis une polyvalence et une rigueur qui me
+                        permettent
+                        d'être rapidement opérationnelle.</div>
+                </div>
+                <div class="added-text-block" id="cl-block-3" style="margin-top: 15px; position:relative;">
+                    <div contenteditable="true"
+                        style="outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem;">Au
+                        cours de mes précédentes expériences chez Ortec Dépollution ou Hexagon Metrology, j'ai
+                        pu développer
+                        mes compétences en suivi budgétaire, gestion des achats et management d'équipe. Mon sens
+                        de
+                        l'organisation et mon aisance relationnelle sont des atouts que je souhaite mettre au
+                        service de votre structure.</div>
+                </div>
+                <div class="added-text-block" id="cl-block-4" style="margin-top: 15px; position:relative;">
+                    <div contenteditable="true"
+                        style="outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem;">Je me
+                        tiens à votre entière disposition pour un entretien afin de vous exposer mes
+                        motivations.</div>
+                </div>
+                <div class="added-text-block" id="cl-block-5" style="margin-top: 15px; position:relative;">
+                    <div contenteditable="true"
+                        style="outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem;">Dans
+                        l'attente
+                        de votre retour, je vous prie d'agréer, Madame, Monsieur, l' expression de mes
+                        salutations distinguées.</div>
+                </div>
+                <div class="added-text-block" id="cl-block-6" style="margin-top: 15px; position:relative;">
+                    <div contenteditable="true"
+                        style="outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem; font-weight:700;">
+                        Carole Jacquelin</div>
+                </div>
+                <!-- Close last text block -->
+            </div>
+            <!-- Close main-content -->
+            <div class="footer-bar">
+                <div class="footer-logo" contenteditable="true">MA VILLE AVANCE</div>
+            </div>
+        </div>
+        <!-- Close cl-content -->
+        <!-- Right Margin reserved for Cover Letter additions -->
+        <div style="width: 320px; flex-shrink: 0;" class="no-print"></div>
+    </div>
+    <!-- Close document-workspace -->
+    <script> // =========================================================
+
+        // ICON COLOR CONSTANTS — déclarées en premier pour être disponibles partout
+        // =========================================================
+        var ICON_COLOR_DEFAULTS = {
+            'contact': '#00DC78',
+            'langues': '#829BFA',
+            'competences': '#FF6B4A',
+            'formation': '#FFCD32'
+        }
+
+            ;
+
+        var ICON_CSS_VARS = {
+            'contact': '--icon-contact',
+            'langues': '--icon-langues',
+            'competences': '--icon-competences',
+            'formation': '--icon-formation'
+        }
+
+            ;
+
+        // =========================================================
+        // PHOTO & COLOR & EXPORT
+        // =========================================================
+        function triggerPhotoUpload(e) {
+
+            // In drag mode, don't open file picker — let drag handle do the moving
+            if (freeDragMode) {
+                if (e) e.preventDefault();
+                return;
+            }
+
+            document.getElementById('photo-input').click();
+        }
+
+        function alignAllBlocks() {
+            const containers = document.querySelectorAll('.cv-container');
+
+            containers.forEach(container => {
+                DRAGGABLE_SELECTORS.forEach(sel => {
+                    container.querySelectorAll(sel).forEach(el => {
+                        const off = getOffset(el);
+                        off.tx = 0; // Reset horizontal offset to align perfectly to the left
+                        applyTransform(el);
+                    });
+                });
+            });
+            saveState();
+        }
+
+        function triggerPhotoUploadCL(e) {
+            if (freeDragMode) {
+                if (e) e.preventDefault();
+                return;
+            }
+
+            document.getElementById('photo-input-cl').click();
+        }
+
+        function updatePhotoCL(input) {
+            if (input.files && input.files[0]) {
+                const r = new FileReader();
+
+                r.onload = e => {
+                    const src = e.target.result;
+                    document.getElementById('profile-img').src = src;
+                    document.getElementById('profile-img-cl').src = src;
+                    saveState();
+                }
+
+                    ;
+                r.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // =========================================================
+        // ADD ELEMENTS — inject new editable items into the CV
+        // =========================================================
+        // All toggle functions unified below for safety
+
+        // UNIFIED MENU TOGGLE LOGIC
+        function toggleMenu(menuId, btnId) {
+            const menu = document.getElementById(menuId);
+            const btn = document.getElementById(btnId);
+            if (!menu) return;
+
+            // Use a class-based check for Safari/mobile stability 
+            const isOpen = menu.classList.contains('menu-open');
+            closeAllMenus();
+
+            if (!isOpen) {
+                menu.style.display = 'block';
+                menu.classList.add('menu-open');
+
+                if (btn) {
+                    btn.style.background = '#eef2ff';
+                    btn.style.color = '#466eff';
+                    btn.classList.add('btn-active');
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        function closeAllMenus() {
+            const menuIds = ['photo-menu',
+                'text-menu',
+                'sidebar-menu',
+                'footer-menu',
+                'title-menu',
+                'add-menu',
+                'icon-menu'];
+            const btnIds = ['photo-menu-btn',
+                'text-menu-btn',
+                'sidebar-menu-btn',
+                'footer-menu-btn',
+                'title-menu-btn',
+                'add-menu-btn',
+                'icon-menu-btn'];
+
+            menuIds.forEach((id, idx) => {
+                const el = document.getElementById(id);
+
+                if (el) {
+                    el.style.display = 'none';
+                    el.classList.remove('menu-open');
+                }
+
+                const btn = document.getElementById(btnIds[idx]);
+
+                if (btn) {
+                    btn.classList.remove('btn-active');
+
+                    // Reset to default colors
+                    if (idx === 5) {
+                        // 'Ajouter' button
+                        btn.style.background = 'var(--massy-green)';
+                        btn.style.color = 'white';
+                    }
+
+                    else {
+                        btn.style.background = '#f0f0f0';
+                        btn.style.color = '#142355';
+                    }
+                }
+            });
+        }
+
+        function togglePhotoMenu(e) {
+            if (e) e.stopPropagation();
+            toggleMenu('photo-menu', 'photo-menu-btn');
+        }
+
+        function toggleTextMenu(e) {
+            if (e) e.stopPropagation();
+            toggleMenu('text-menu', 'text-menu-btn');
+        }
+
+        function toggleAddMenu(e) {
+            if (e) e.stopPropagation();
+            toggleMenu('add-menu', 'add-menu-btn');
+        }
+
+        function toggleIconMenu(e) {
+            if (e) e.stopPropagation();
+            toggleMenu('icon-menu', 'icon-menu-btn');
+        }
+
+        function applyIconColors(data) {
+
+            // Restore icon colors from saved state
+            Object.keys(ICON_CSS_VARS).forEach(function (group) {
+                var key = 'iconColor_' + group;
+
+                if (data[key]) {
+                    document.documentElement.style.setProperty(ICON_CSS_VARS[group], data[key]);
+                    var input = document.getElementById('color-' + group);
+                    if (input) input.value = data[key];
+                }
+            });
+        }
+
+        function setIconColor(group, color) {
+            var cssVar = ICON_CSS_VARS[group];
+            if (!cssVar) return;
+            document.documentElement.style.setProperty(cssVar, color);
+            var input = document.getElementById('color-' + group);
+            if (input) input.value = color;
+            // Délai pour éviter saveState pendant un drag de la roue couleur
+            clearTimeout(window._iconSaveTimeout);
+
+            window._iconSaveTimeout = setTimeout(function () {
+                saveState();
+            }
+
+                , 400);
+        }
+
+        function resetIconColor(group, defaultColor) {
+            setIconColor(group, defaultColor);
+        }
+
+        function resetAllIconColors() {
+            Object.keys(ICON_COLOR_DEFAULTS).forEach(function (group) {
+                var color = ICON_COLOR_DEFAULTS[group];
+                var cssVar = ICON_CSS_VARS[group];
+                document.documentElement.style.setProperty(cssVar, color);
+                var input = document.getElementById('color-' + group);
+                if (input) input.value = color;
+            });
+            clearTimeout(window._iconSaveTimeout);
+
+            window._iconSaveTimeout = setTimeout(function () {
+                // Réinitialiser aussi les couleurs des expériences
+                var expDefaults = ['#466EFF', '#00DC78', '#FF6B4A', '#829BFA'];
+
+                expDefaults.forEach(function (color, i) {
+                    setExpColorByIndex(i, color);
+                });
+                saveState();
+            }
+
+                , 400);
+        }
+
+        let addedElementCount = Date.now();
+
+        function addElement(type, target = 'cv') {
+            document.getElementById('add-menu').style.display = 'none';
+
+            // Force drag mode to be able to position the new element
+            if (!freeDragMode) toggleDragMode();
+
+            addedElementCount++;
+            const id = 'added-el-' + addedElementCount;
+            let el;
+            const borderColors = ['#466EFF',
+                '#00DC78',
+                '#FF6B4A',
+                '#829BFA'];
+            const color = borderColors[(addedElementCount - 1) % borderColors.length];
+
+            if (type === 'experience') {
+                el = document.createElement('div');
+                el.className = 'experience-item';
+                el.id = id;
+
+                el.style.borderLeft = `4px solid ${color}`;
+                el.style.background = 'white';
+                el.style.padding = '20px';
+                el.style.borderRadius = '12px';
+                el.innerHTML = ` <div class="job-logo-badge" onclick="triggerLogoUpload('${id}')" title="Cliquer pour charger un logo"
+                style="background:${color}22;color:${color};flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer;position:relative;overflow:hidden;"><i class="fas fa-briefcase"></i><input type="file" accept="image/*" style="display:none;" onchange="updateElementLogo(this, '${id}')"></div><div class="job-details" style="flex:1;"><div class="job-title" contenteditable="true" style="outline:none;min-width:80px;font-weight:700;">Nouveau poste</div><div class="job-company" contenteditable="true" style="outline:none;min-width:80px;color:${color};font-weight:600;">Entreprise</div><span class="job-date-badge" contenteditable="true" style="outline:none;font-size:0.8rem;opacity:0.7;">MMM AAAA – MMM AAAA</span><ul class="job-missions" style="margin-top:10px;padding-left:18px;"><li contenteditable="true" style="outline:none;">Description de vos missions...</li></ul></div>`;
+            }
+
+            else if (type === 'text') {
+                el = document.createElement('div');
+                el.className = 'added-text-block';
+                el.id = id;
+
+                el.style.borderLeft = `4px solid ${color}`;
+                el.style.background = 'white';
+                el.style.padding = '20px';
+                el.style.borderRadius = '12px';
+                el.innerHTML = `<p contenteditable="true" style="outline:none;color:#142355;font-size:0.92rem;line-height:1.6;margin:0;">Saisissez votre texte personnalisé ici…</p>`;
+            }
+
+            else if (type === 'section') {
+                el = document.createElement('div');
+                el.id = id;
+                el.className = 'section-bar';
+                el.style.position = 'relative';
+                el.innerHTML = ` <span contenteditable="true" style="outline:none;letter-spacing:2px;">NOUVELLE SECTION</span>`;
+            }
+
+            else if (type === 'photo') {
+                el = document.createElement('div');
+                el.id = id;
+                el.className = 'added-photo-el';
+                el.style.cssText = 'width:180px; height:180px; cursor:pointer; position:relative; z-index:2500;';
+
+                el.onclick = function (e) {
+                    if (e.target.closest('.photo-settings-btn') || e.target.closest('.photo-settings-popup')) return;
+                    if (e.target === el || e.target.tagName === 'I' || e.target.tagName === 'IMG') triggerPhotoUploadForElement(id);
+                }
+
+                    ;
+                el.innerHTML = ` <div class="photo-mask" style="width:100%; height:100%; background:#f8faff; border:2px dashed #e0e6ff; border-radius:16px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; z-index:1;"><i class="fas fa-camera" style="font-size:3rem; color:#142355; opacity:0.2;"></i><img src="" style="display:none; width:100%; height:100%; object-fit:cover;"></div><div class="photo-settings-btn no-print" onclick="event.stopPropagation(); toggleAddedPhotoSettings('${id}')"
+                style="position:absolute; top:-10px; left:-10px; width:44px; height:44px; border-radius:50%; background:#142355; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(0,0,0,0.4); z-index:110; color:white; cursor:pointer; border:2px solid white;"><i class="fas fa-cog" style="font-size:1.4rem;"></i></div><div id="settings-${id}" class="no-print photo-settings-popup"
+                style="display:none; position:absolute; top:40px; left:-10px; background:white; border-radius:24px; box-shadow:0 20px 60px rgba(0,0,0,0.4); padding:25px; width:250px; z-index:120; border:2px solid #142355; text-align:left;"><div style="font-size:0.95rem; font-weight:900; color:#142355; text-transform:uppercase; margin-bottom:18px; letter-spacing:1px; display:flex; align-items:center; gap:10px; border-bottom:3px solid #f0f4ff; padding-bottom:10px;"><i class="fas fa-expand-arrows-alt" style="color:#466EFF;"></i>REGLAGE TAILLE </div><div style="display:flex; gap:12px; margin-bottom:25px;"><button onclick="resizeAddedPhoto('${id}', -60)" class="btn" style="flex:1; height:50px; background:#f0f4ff; border:none; color:#142355; font-size:1.8rem; font-weight:bold; border-radius:15px;">-</button><button onclick="resizeAddedPhoto('${id}', 60)" class="btn" style="flex:1; height:50px; background:#f0f4ff; border:none; color:#142355; font-size:1.8rem; font-weight:bold; border-radius:15px;">+</button></div><div style="font-size:0.95rem; font-weight:900; color:#142355; text-transform:uppercase; margin-bottom:18px; letter-spacing:1px; display:flex; align-items:center; gap:10px; border-bottom:3px solid #f0f4ff; padding-bottom:10px;"><i class="fas fa-shapes" style="color:#466EFF;"></i>CHOIX FORME </div><div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"><button onclick="shapeAddedPhoto('${id}', 'square')" class="btn" style="flex-direction:column; gap:8px; height:auto; padding:15px 0; background:#f8faff; border:1px solid #e0e6ff; border-radius:15px;"><i class="fas fa-square" style="font-size:1.5rem; color:#142355;"></i><span style="font-size:0.8rem; font-weight:800; color:#142355;">Carré</span></button><button onclick="shapeAddedPhoto('${id}', 'round')" class="btn" style="flex-direction:column; gap:8px; height:auto; padding:15px 0; background:#f8faff; border:1px solid #e0e6ff; border-radius:15px;"><i class="fas fa-circle" style="font-size:1.5rem; color:#142355;"></i><span style="font-size:0.8rem; font-weight:800; color:#142355;">Rond</span></button><button onclick="shapeAddedPhoto('${id}', 'rect')" class="btn" style="flex-direction:column; gap:8px; height:auto; padding:15px 0; background:#f8faff; border:1px solid #e0e6ff; border-radius:15px;"><i class="fas fa-rectangle" style="font-size:1.5rem; color:#142355; transform:scaleX(1.4);"></i><span style="font-size:0.8rem; font-weight:800; color:#142355;">Rect.</span></button><button onclick="shapeAddedPhoto('${id}', 'diamond')" class="btn" style="flex-direction:column; gap:8px; height:auto; padding:15px 0; background:#f8faff; border:1px solid #e0e6ff; border-radius:15px;"><i class="fas fa-square" style="font-size:1.2rem; color:#142355; transform:rotate(45deg);"></i><span style="font-size:0.8rem; font-weight:800; color:#142355;">Losange</span></button></div></div><input type="file" accept="image/*" style="display:none;" onchange="updateAddedPhoto(this, '${id}')">`;
+            }
+
+            if (el) {
+                // Initial placement OUTSIDE the page (in the left or right staging area)
+                el.style.position = 'absolute';
+
+                if (target === 'cv') {
+                    cvContainer.appendChild(el);
+                    // Positionner au centre-bas visible du CV (pas hors écran)
+                    const cvRect = cvContainer.getBoundingClientRect();
+                    el.style.left = '50px';
+                    el.style.top = '30px';
+                }
+
+                else {
+                    const cl = document.getElementById('cl-content');
+                    if (cl) cl.appendChild(el);
+                    el.style.left = '100px';
+                    el.style.top = '30px';
+                }
+
+                if (type !== 'text') {
+                    el.style.width = '340px';
+                    el.style.boxShadow = '0 15px 45px rgba(0,0,0,0.25)';
+                }
+
+                else {
+                    el.style.width = '290px';
+                }
+
+                el.style.zIndex = '3000';
+
+                // Add "TO PLACE" indicator — visible, centré au-dessus de l'élément
+                const badge = document.createElement('div');
+                badge.innerHTML = '<i class="fas fa-arrows-alt"></i> GLISSER POUR PLACER';
+                badge.style.cssText = 'position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#466EFF;color:white;font-size:0.65rem;font-weight:800;padding:4px 12px;border-radius:50px;box-shadow:0 4px 14px rgba(70,110,255,0.5);z-index:100;pointer-events:none;white-space:nowrap;';
+                el.appendChild(badge);
+
+                // Scroll vers l'élément pour qu'il soit visible
+                setTimeout(function () {
+                    el.scrollIntoView({
+                        behavior: 'smooth', block: 'nearest', inline: 'nearest'
+                    });
+                }
+
+                    , 80);
+
+                ensureSettingsButtons();
+
+                // If currently in drag mode, make sure this new element is also ready
+                if (freeDragMode) {
+                    el.querySelectorAll('[contenteditable]').forEach(ce => {
+                        ce.dataset.ce = ce.contentEditable;
+                        ce.contentEditable = 'false';
+                    });
+                }
+
+                // Initialize drag functionality
+                addDragHandle(el);
+
+                offsets.set(el, {
+                    tx: 0, ty: 0
+                });
+                applyTransform(el);
+
+                // Pulse effect to notice the new element
+                el.style.animation = 'pulse-new-element 1.5s infinite alternate';
+
+                // Remove pulse once user starts dragging it
+                el.addEventListener('mousedown', () => {
+                    el.style.animation = 'none';
+                    if (badge.parentNode) badge.remove();
+                }
+
+                    , {
+                        once: true
+                    });
+
+                saveState(); // Save state after addition
+
+                // Add color row to panel for the new experience card
+                if (type === 'experience') {
+                    var allExp = document.querySelectorAll('.experience-item');
+                    var newIdx = allExp.length - 1;
+
+                    // For cards beyond the 4 static panel rows, create a dynamic row
+                    if (newIdx >= 4) {
+                        addExpColorRowToPanel(newIdx, color);
+                    }
+
+                    else {
+                        // Update existing static panel row picker
+                        var picker = document.getElementById('exp-color-picker-' + newIdx);
+                        if (picker) picker.value = color;
+                        setExpColorByIndex(newIdx, color);
+                    }
+                }
+
+                // Rendre le conteneur visible pour que l'élément ajouté soit toujours visible
+                syncContainerOverflow(el.closest('.cv-container') || cvContainer);
+
+                // S'assurer que les boutons de réglages sont générés pour le nouvel élément
+                ensureSettingsButtons();
+            }
+        }
+
+        function toggleAddedPhotoSettings(id) {
+            const popup = document.getElementById('settings-' + id);
+
+            if (popup) {
+                const isVisible = popup.style.display === 'block';
+                // Fermer les autres popups ouverts
+                document.querySelectorAll('.photo-settings-popup').forEach(p => p.style.display = 'none');
+                popup.style.display = isVisible ? 'none' : 'block';
+            }
+        }
+
+        function resizeAddedPhoto(id, delta) {
+            const el = document.getElementById(id);
+
+            if (el) {
+                let w = parseInt(el.style.width) || 180;
+                let h = parseInt(el.style.height) || 180;
+                w = Math.max(40, Math.min(800, w + delta));
+                h = Math.max(40, Math.min(800, h + delta));
+                el.style.width = w + 'px';
+                el.style.height = h + 'px';
+                saveState();
+            }
+        }
+
+        function shapeAddedPhoto(id, type) {
+            const el = document.getElementById(id);
+            const mask = el ? el.querySelector('.photo-mask') : null;
+
+            if (mask) {
+                // Reset common styles
+                mask.style.borderRadius = '';
+                mask.style.clipPath = '';
+
+                if (type === 'square') {
+                    mask.style.borderRadius = '15px';
+                    el.style.width = el.style.height;
+                }
+
+                else if (type === 'round') {
+                    mask.style.borderRadius = '50%';
+                    el.style.width = el.style.height;
+                }
+
+                else if (type === 'rect') {
+                    mask.style.borderRadius = '15px';
+                    let w = parseInt(el.style.width) || 180;
+                    el.style.height = (w * 0.6) + 'px'; // 5:3 ratio
+                }
+
+                else if (type === 'diamond') {
+                    mask.style.borderRadius = '0';
+                    mask.style.clipPath = 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+                    el.style.width = el.style.height;
+                }
+
+                saveState();
+            }
+        }
+
+        function triggerPhotoUploadForElement(id) {
+            const el = document.getElementById(id);
+
+            if (el) {
+                const input = el.querySelector('input[type="file"]');
+                if (input) input.click();
+            }
+        }
+
+        function updateAddedPhoto(input, id) {
+            if (input.files && input.files[0]) {
+                const r = new FileReader();
+
+                r.onload = e => {
+                    const el = document.getElementById(id);
+
+                    if (el) {
+                        const mask = el.querySelector('.photo-mask');
+                        const img = mask ? mask.querySelector('img') : null;
+                        const icon = mask ? mask.querySelector('i') : null;
+
+                        if (img && icon) {
+                            img.src = e.target.result;
+                            img.style.display = 'block';
+                            icon.style.display = 'none';
+                            mask.style.border = 'none';
+                        }
+                    }
+
+                    saveState();
+                }
+
+                    ;
+                r.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function updatePhoto(input) {
+            if (input.files && input.files[0]) {
+                const r = new FileReader();
+
+                r.onload = e => {
+                    const src = e.target.result;
+                    document.getElementById('profile-img').src = src;
+                    document.getElementById('profile-img-cl').src = src;
+                    saveState();
+                }
+
+                    ;
+                r.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function triggerLogoUpload(id) {
+            const container = document.getElementById(id);
+
+            if (container) {
+                const input = container.querySelector('input[type="file"]');
+                if (input) input.click();
+            }
+        }
+
+        function updateElementLogo(input, id) {
+            if (input.files && input.files[0]) {
+                const r = new FileReader();
+
+                r.onload = e => {
+                    const container = document.getElementById(id);
+                    const badge = container.querySelector('.job-logo-badge') || container.querySelector('.job-logo');
+
+                    if (badge) {
+                        badge.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;border-radius:inherit;"><input type="file" accept="image/*" style="display:none;" onchange="updateElementLogo(this, '${id}')">`;
+                        badge.style.background = 'white';
+                        badge.style.padding = '2px';
+                        badge.style.border = '1px solid #eee';
+                        saveState();
+                    }
+                }
+
+                    ;
+                r.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function toggleToolbar() {
+            const toolbar = document.getElementById('main-toolbar');
+            const toggle = document.getElementById('master-toggle');
+            toolbar.classList.toggle('hidden');
+            toggle.classList.toggle('active');
+        }
+
+        // togglePhotoMenu moved and unified above
+
+        function setPhotoSize(v) {
+            const containers = document.querySelectorAll('.profile-photo-container');
+
+            containers.forEach(container => {
+                container.style.width = v + 'px';
+                const shape = container.dataset.shape || 'round';
+
+                if (shape === 'round' || shape === 'square' || shape === 'diamond') {
+                    container.style.height = v + 'px';
+                }
+
+                else if (shape === 'oval' || shape === 'rect') {
+                    container.style.height = (v * 1.35) + 'px';
+                }
+            });
+            document.getElementById('photo-size-val').innerText = v + 'px';
+            saveState();
+        }
+
+        function setPhotoShape(shape) {
+            const containers = document.querySelectorAll('.profile-photo-container');
+
+            containers.forEach(container => {
+                container.dataset.shape = shape;
+                const size = parseInt(container.style.width) || 180;
+                // Reset clip-path for non-clip shapes
+                container.style.clipPath = '';
+
+                if (shape === 'round') {
+                    container.style.borderRadius = '50%';
+                    container.style.height = size + 'px';
+                }
+
+                else if (shape === 'oval') {
+                    container.style.borderRadius = '50%';
+                    container.style.height = (size * 1.35) + 'px';
+                }
+
+                else if (shape === 'square') {
+                    container.style.borderRadius = '12px';
+                    container.style.height = size + 'px';
+                }
+
+                else if (shape === 'rect') {
+                    container.style.borderRadius = '12px';
+                    container.style.height = (size * 1.35) + 'px';
+                }
+
+                else if (shape === 'diamond') {
+                    container.style.borderRadius = '0';
+                    container.style.clipPath = 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+                    container.style.height = size + 'px';
+                }
+            });
+        }
+
+        function togglePhotoVisibility() {
+            const containers = document.querySelectorAll('.profile-photo-container');
+            const btn = document.getElementById('toggle-photo-btn');
+            // Check visibility to avoid layout shifts when hidden
+            const isHidden = (containers[0].style.visibility === 'hidden');
+
+            containers.forEach(container => {
+                if (isHidden) {
+                    container.style.visibility = 'visible';
+                    container.style.opacity = '1';
+                    container.style.pointerEvents = 'auto';
+                }
+
+                else {
+                    container.style.visibility = 'hidden';
+                    container.style.opacity = '0';
+                    container.style.pointerEvents = 'none';
+                }
+            });
+
+            if (isHidden) {
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i> Masquer la photo';
+                btn.style.background = '#fff1f1';
+                btn.style.color = '#FF6B4A';
+                btn.style.borderColor = 'rgba(255,107,74,0.2)';
+            }
+
+            else {
+                btn.innerHTML = '<i class="fas fa-eye"></i> Afficher la photo';
+                btn.style.background = '#eef2ff';
+                btn.style.color = '#466EFF';
+                btn.style.borderColor = 'rgba(70,110,255,0.2)';
+            }
+
+            saveState();
+        }
+
+        let activeResizeEl = null;
+        let activeResizeType = null;
+        let startResizeVal = 0;
+
+        function ensureSettingsButtons() {
+            document.querySelectorAll('.cv-container .experience-item, .cv-container .added-text-block, #cl-content .added-text-block').forEach(el => {
+                const id = el.id;
+                if (!id) return;
+
+                // 1. Nettoyage des anciens éléments de menu
+                el.querySelectorAll('.text-settings-btn, .text-settings-popup').forEach(old => old.remove());
+
+                // 2. Ajout des poignées de redimensionnement (Handles) si absentes
+                // LARGEUR (Droite)
+                if (!el.querySelector('.handle-width')) {
+                    const h = document.createElement('div');
+                    h.className = 'block-resize-handle handle-width no-print';
+                    h.title = "Glisser pour élargir";
+                    el.appendChild(h);
+                }
+
+                // MARGE HAUT
+                if (!el.querySelector('.handle-margin-top')) {
+                    const h = document.createElement('div');
+                    h.className = 'block-resize-handle handle-margin handle-margin-top no-print';
+                    h.title = "Glisser pour l'espace haut";
+                    el.appendChild(h);
+                }
+
+                // MARGE BAS
+                if (!el.querySelector('.handle-margin-bottom')) {
+                    const h = document.createElement('div');
+                    h.className = 'block-resize-handle handle-margin handle-margin-bottom no-print';
+                    h.title = "Glisser pour l'espace bas";
+                    el.appendChild(h);
+                }
+
+                // Suppression demandée par l'utilisateur des outils rapides (block-font-tools)
+
+            });
+        }
+
+        function initResize(e, id, type) {
+            e.preventDefault();
+            e.stopPropagation();
+            activeResizeEl = document.getElementById(id);
+            activeResizeType = type;
+            startMouseX = e.clientX;
+            startMouseY = e.clientY;
+
+            // Feedback visuel global
+            activeResizeEl.classList.add('resizing-active');
+            e.target.classList.add('resizing-active-handle');
+            document.body.style.cursor = (type === 'width' ? 'ew-resize' : 'ns-resize');
+
+            const style = window.getComputedStyle(activeResizeEl);
+
+            if (type === 'width') {
+                startResizeVal = activeResizeEl.offsetWidth;
+            }
+
+            else if (type === 'top') {
+                startResizeVal = parseInt(style.marginTop) || 0;
+            }
+
+            else if (type === 'bottom') {
+                startResizeVal = parseInt(style.marginBottom) || 0;
+            }
+        }
+
+
+        // =========================================================
+        // SIDEBAR MENUS
+        // =========================================================
+        const SIDEBAR_SHAPES = [{
+            name: "Vague Organique", path: "M0,0 H80 C115,30 50,70 85,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Ligne Droite", path: "M0,0 H100 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Diagonale Droite", path: "M0,0 H100 L70,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Diagonale Gauche", path: "M0,0 H70 L100,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Courbe Convexe", path: "M0,0 H75 Q115,50 75,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Courbe Concave", path: "M0,0 H100 Q60,50 100,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Double Vague", path: "M0,0 H75 C100,25 50,75 75,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Pointe Triangle", path: "M0,0 H75 L100,50 L75,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Biseau Supérieur", path: "M0,0 H100 L70,30 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Biseau Inférieur", path: "M0,0 H70 V70 L100,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Arrondi Haut", path: "M0,0 H70 Q100,0 100,30 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Arrondi Bas", path: "M0,0 H100 V70 Q100,100 70,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Marche Escalier", path: "M0,0 H100 V40 H70 V60 H100 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Sablier", path: "M0,0 H100 L70,50 L100,100 H0 Z"
+        }
+
+        ];
+
+        function toggleSidebarMenu(e) {
+            if (e) e.stopPropagation();
+
+            if (toggleMenu('sidebar-menu', 'sidebar-menu-btn')) {
+                const grid = document.getElementById('sidebar-shapes-grid');
+
+                if (grid && grid.children.length === 0) {
+                    SIDEBAR_SHAPES.forEach((shape, idx) => {
+                        const sBtn = document.createElement('button');
+                        sBtn.className = 'btn btn-sm';
+                        sBtn.style.cssText = 'font-size:0.7rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:center;';
+                        sBtn.innerText = shape.name;
+                        sBtn.onclick = () => setSidebarShape(idx);
+                        grid.appendChild(sBtn);
+                    });
+                }
+            }
+        }
+
+        function setSidebarShape(idx) {
+            const shape = SIDEBAR_SHAPES[idx];
+            if (!shape) return;
+            const encodedPath = encodeURIComponent(shape.path).replace(/%20/g, ' '); // SVG paths allow spaces, but strict URL parsers prefer encoded ones. Actually encodeURIComponent handles it, replacing %20 with space is better for readability unless it breaks. Let's just use encodeURIComponent for safety, but keep spaces as %20 just in case.
+            const svgStr = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='${shape.path}' fill='black' /></svg>`;
+            const maskUrl = `url("data:image/svg+xml,${encodeURIComponent(svgStr)}")`;
+            document.documentElement.style.setProperty('--sidebar-mask', maskUrl);
+            saveState();
+        }
+
+        function setSidebarWidth(val) {
+            document.getElementById('sidebar-width-val').innerText = val + '%';
+            document.documentElement.style.setProperty('--sidebar-width', val + '%');
+            saveState();
+        }
+
+        const FOOTER_SHAPES = [{
+            name: "Vague Organique", path: "M0,100 L100,100 L100,15 C70,-15 30,50 0,0 Z"
+        }
+
+            ,
+        {
+            name: "Ligne Droite", path: "M0,100 L100,100 L100,0 L0,0 Z"
+        }
+
+            ,
+        {
+            name: "Diagonale Droite", path: "M0,100 L100,100 L100,30 L0,0 Z"
+        }
+
+            ,
+        {
+            name: "Diagonale Gauche", path: "M0,100 L100,100 L100,0 L0,30 Z"
+        }
+
+            ,
+        {
+            name: "Courbe Convexe", path: "M0,100 L100,100 L100,25 Q50,-15 0,25 Z"
+        }
+
+            ,
+        {
+            name: "Courbe Concave", path: "M0,100 L100,100 L100,0 Q50,40 0,0 Z"
+        }
+
+            ,
+        {
+            name: "Double Vague", path: "M0,100 L100,100 L100,25 C75,0 25,50 0,25 Z"
+        }
+
+            ,
+        {
+            name: "Pointe Triangle", path: "M0,100 L100,100 L100,25 L50,0 L0,25 Z"
+        }
+
+            ,
+        {
+            name: "Biseau Supérieur", path: "M0,100 L100,100 L100,30 L70,0 L0,0 Z"
+        }
+
+            ,
+        {
+            name: "Biseau Inférieur", path: "M0,100 L100,100 L100,0 L30,0 L0,30 Z"
+        }
+
+            ,
+        {
+            name: "Arrondi Haut", path: "M0,100 L100,100 L100,30 Q100,0 70,0 L0,0 Z"
+        }
+
+            ,
+        {
+            name: "Arrondi Bas", path: "M0,100 L100,100 L100,0 L30,0 Q0,0 0,30 Z"
+        }
+
+            ,
+        {
+            name: "Marche Escalier", path: "M0,100 L100,100 L100,0 L60,0 L60,30 L0,30 Z"
+        }
+
+            ,
+        {
+            name: "Sablier", path: "M0,100 L100,100 L100,0 L50,30 L0,0 Z"
+        }
+
+        ];
+
+        function toggleFooterMenu(e) {
+            if (e) e.stopPropagation();
+
+            if (toggleMenu('footer-menu', 'footer-menu-btn')) {
+                const grid = document.getElementById('footer-shapes-grid');
+
+                if (grid && grid.children.length === 0) {
+                    FOOTER_SHAPES.forEach((shape, idx) => {
+                        const sBtn = document.createElement('button');
+                        sBtn.className = 'btn btn-sm';
+                        sBtn.style.cssText = 'font-size:0.7rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:center;';
+                        sBtn.innerText = shape.name;
+                        sBtn.onclick = () => setFooterShape(idx);
+                        grid.appendChild(sBtn);
+                    });
+                }
+            }
+        }
+
+        function setFooterShape(idx) {
+            const shape = FOOTER_SHAPES[idx];
+            if (!shape) return;
+            const svgStr = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='${shape.path}' fill='black' /></svg>`;
+            const maskUrl = `url("data:image/svg+xml,${encodeURIComponent(svgStr)}")`;
+            document.documentElement.style.setProperty('--footer-mask', maskUrl);
+            saveState();
+        }
+
+        function setFooterHeight(val) {
+            document.getElementById('footer-height-val').innerText = val + 'px';
+            document.documentElement.style.setProperty('--footer-pt', val + 'px');
+            saveState();
+        }
+
+        const TITLE_SHAPES = [{
+            name: "Vague Organique", path: "M0,0 H80 C115,30 50,70 85,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Ligne Droite", path: "M0,0 H100 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Diagonale Droite", path: "M0,0 H100 L70,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Diagonale Gauche", path: "M0,0 H70 L100,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Courbe Convexe", path: "M0,0 H75 Q115,50 75,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Courbe Concave", path: "M0,0 H100 Q60,50 100,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Double Vague", path: "M0,0 H75 C100,25 50,75 75,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Pointe Triangle", path: "M0,0 H75 L100,50 L75,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Biseau Supérieur", path: "M0,0 H100 L70,30 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Biseau Inférieur", path: "M0,0 H70 V70 L100,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Arrondi Haut", path: "M0,0 H70 Q100,0 100,30 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Arrondi Bas", path: "M0,0 H100 V70 Q100,100 70,100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Marche Escalier", path: "M0,0 H100 V40 H70 V60 H100 V100 H0 Z"
+        }
+
+            ,
+        {
+            name: "Sablier", path: "M0,0 H100 L70,50 L100,100 H0 Z"
+        }
+
+        ];
+
+        function toggleTitleMenu(e) {
+            if (e) e.stopPropagation();
+
+            if (toggleMenu('title-menu', 'title-menu-btn')) {
+                const grid = document.getElementById('title-shapes-grid');
+
+                if (grid && grid.children.length === 0) {
+                    TITLE_SHAPES.forEach((shape, idx) => {
+                        const sBtn = document.createElement('button');
+                        sBtn.className = 'btn btn-sm';
+                        sBtn.style.cssText = 'font-size:0.7rem; border-radius:10px; background:#f8faff; color:#142355; border:1px solid #e0e6ff; padding:8px 5px; width:100%; justify-content:center;';
+                        sBtn.innerText = shape.name;
+                        sBtn.onclick = () => setTitleShape(idx);
+                        grid.appendChild(sBtn);
+                    });
+                }
+            }
+        }
+
+        function setTitleShape(idx) {
+            const shape = TITLE_SHAPES[idx];
+            if (!shape) return;
+            const svgStr = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='${shape.path}' fill='black' /></svg>`;
+            const maskUrl = `url("data:image/svg+xml,${encodeURIComponent(svgStr)}")`;
+            document.documentElement.style.setProperty('--title-mask', maskUrl);
+            saveState();
+        }
+
+        function setTitleHeight(val) {
+            document.getElementById('title-height-val').innerText = val + 'px';
+            document.documentElement.style.setProperty('--title-pt', val + 'px');
+            saveState();
+        }
+
+        // Close menus when clicking outside
+        // Close menus when clicking outside
+        document.addEventListener('click', function (e) {
+            const menuIds = ['photo-menu', 'text-menu', 'sidebar-menu', 'footer-menu', 'title-menu', 'add-menu'];
+            const btnIds = ['photo-menu-btn', 'text-menu-btn', 'sidebar-menu-btn', 'footer-menu-btn', 'title-menu-btn', 'add-menu-btn'];
+
+            // SÉLECTION / DÉSÉLECTION globale des blocs
+            const clickedBlock = e.target.closest('.experience-item, .added-text-block');
+            const clickedTools = e.target.closest('.block-resize-handle, button');
+
+            if (clickedBlock && !clickedTools) {
+
+                // On a cliqué sur un bloc
+                if (!clickedBlock.classList.contains('block-selected')) {
+                    document.querySelectorAll('.block-selected').forEach(sel => sel.classList.remove('block-selected'));
+                    clickedBlock.classList.add('block-selected');
+                    ensureSettingsButtons(); // S'assurer que les outils existent
+                }
+            }
+
+            else if (!clickedBlock && !clickedTools) {
+                // On a cliqué dans le vide
+                document.querySelectorAll('.block-selected').forEach(sel => sel.classList.remove('block-selected'));
+            }
+
+            let clickedInsideSpecific = false;
+
+            menuIds.forEach((mId, idx) => {
+                const menu = document.getElementById(mId);
+                const btn = document.getElementById(btnIds[idx]);
+
+                if ((menu && menu.contains(e.target)) || (btn && btn.contains(e.target))) {
+                    clickedInsideSpecific = true;
+                }
+            });
+
+            if (!clickedInsideSpecific) {
+                closeAllMenus();
+            }
+        });
+
+        // Délégation d'événements pour le redimensionnement (mousedown)
+        document.addEventListener('mousedown', function (e) {
+            if (e.target.classList.contains('handle-width')) {
+                const block = e.target.closest('.experience-item, .added-text-block');
+                if (block) initResize(e, block.id, 'width');
+            }
+
+            else if (e.target.classList.contains('handle-margin-top')) {
+                const block = e.target.closest('.experience-item, .added-text-block');
+                if (block) initResize(e, block.id, 'top');
+            }
+
+            else if (e.target.classList.contains('handle-margin-bottom')) {
+                const block = e.target.closest('.experience-item, .added-text-block');
+                if (block) initResize(e, block.id, 'bottom');
+            }
+        });
+
+        // =========================================================
+        // EXPORT PDF (clean, no browser headers)
+        // =========================================================
+        // =========================================================
+        // EXPORT PDF LOGIC
+        // =========================================================
+        function openPdfModal() {
+            const modal = document.getElementById('pdf-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function closePdfModal() {
+            const modal = document.getElementById('pdf-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        function generatePdf(type) {
+            const loader = document.getElementById('pdf-loader');
+            loader.classList.add('active');
+
+            // 1. Prepare UI
+            const wasDrag = freeDragMode;
+            if (wasDrag) toggleDragMode();
+            if (document.activeElement) document.activeElement.blur();
+            window.getSelection().removeAllRanges();
+            window.scrollTo(0, 0);
+
+            // 2. Prepare Print Container in DOM
+            let printContainer = document.getElementById('pdf-gen-container');
+            if (printContainer) printContainer.remove();
+
+            printContainer = document.createElement('div');
+            printContainer.id = 'pdf-gen-container';
+            document.body.appendChild(printContainer);
+
+            // Helper: Clone and clean
+            const prepareClone = (id) => {
+                const source = document.getElementById(id);
+                const clone = source.cloneNode(true);
+                // We use a different ID for the clone to avoid duplication issues if needed, 
+                // but for style matching we might need to keep it unless we swap classes.
+                // Let's keep ID but since we hide the original, it should be fine.
+
+                Object.assign(clone.style, {
+                    margin: '0',
+                    padding: '0',
+                    boxShadow: 'none',
+                    transform: 'none',
+                    width: '210mm',
+                    height: '297mm',
+                    minHeight: '297mm',
+                    position: 'relative',
+                    left: 'auto',
+                    top: 'auto',
+                    overflow: 'hidden',
+                    background: 'white',
+                    display: 'flex'
+                });
+
+                // Remove interactive elements
+                const buttons = clone.querySelectorAll('.add-btn, .delete-btn, .drag-handle, .ui-control');
+                buttons.forEach(b => b.remove());
+
+                return clone;
+            }
+
+                ;
+
+            // 3. Assemble Content
+            const originalTitle = document.title;
+
+            if (type === 'cv') {
+                printContainer.appendChild(prepareClone('cv-content'));
+                document.title = 'CV_Carole_Jacquelin';
+            }
+
+            else if (type === 'cl') {
+                printContainer.appendChild(prepareClone('cl-content'));
+                document.title = 'Lettre_Motivation_Carole_Jacquelin';
+            }
+
+            else if (type === 'both') {
+                document.title = 'Dossier_Candidature_Carole_Jacquelin';
+                printContainer.appendChild(prepareClone('cv-content'));
+                printContainer.appendChild(prepareClone('cl-content'));
+            }
+
+            // 4. Print via Native Browser Dialog
+            // Increase timeout to 800ms to ensure fonts and masks are rendered
+            setTimeout(() => {
+                window.print();
+
+                // Cleanup after dialog
+                setTimeout(() => {
+                    document.title = originalTitle;
+                    finalize();
+                }
+
+                    , 1000);
+            }
+
+                , 800);
+
+            function finalize() {
+                if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+                if (wasDrag) toggleDragMode();
+                closePdfModal();
+                loader.classList.remove('active');
+            }
+        }
+
+        function changeColor(color) {
+            document.documentElement.style.setProperty('--primary-blue', color);
+            document.documentElement.style.setProperty('--massy-navy', color);
+            saveState();
+        }
+
+        function formatText(cmd, value = null) {
+            document.execCommand(cmd, false, value);
+            saveState();
+        }
+
+        function changeFontSize(delta) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            // Use a unique tag to identify the selection
+            const span = document.createElement('span');
+            const range = selection.getRangeAt(0);
+
+            // Get current font size of the parent if possible
+            let currentSize = 14; // Default
+
+            if (range.commonAncestorContainer) {
+                const parent = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+                currentSize = parseFloat(window.getComputedStyle(parent).fontSize);
+            }
+
+            const newSize = Math.max(6, currentSize + (delta * 2)) + 'px';
+
+            // Apply size using CSS
+            document.execCommand('styleWithCSS', false, true);
+            document.execCommand('fontSize', false, '7'); // Temp size
+
+            // Find elements with the temp size and replace with our pixel value
+            const fontElements = document.getElementsByTagName("font");
+
+            for (let i = 0; i < fontElements.length; i++) {
+                if (fontElements[i].size === "7") {
+                    fontElements[i].removeAttribute("size");
+                    fontElements[i].style.fontSize = newSize;
+                }
+            }
+
+            // Also check for spans created by styleWithCSS
+            const spans = document.getElementsByTagName("span");
+
+            for (let i = 0; i < spans.length; i++) {
+                if (spans[i].style.fontSize === "xxx-large") {
+                    // This is what size 7 usually maps to
+                    spans[i].style.fontSize = newSize;
+                }
+            }
+
+            saveState();
+        }
+
+        // =========================================================
+        // ZOOM & HISTORY
+        // =========================================================
+        let currentScale = 1;
+        const cvContainer = document.getElementById('cv-content');
+        const zoomLevelText = document.getElementById('zoom-level');
+
+        let undoStack = [];
+        let redoStack = [];
+        let saveTimeout = null;
+
+        // History management unified in the main saveState below
+
+        function undo() {
+            if (undoStack.length <= 1) return;
+            const current = undoStack.pop();
+            redoStack.push(current);
+
+            const prev = undoStack[undoStack.length - 1];
+            applyState(prev);
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            const next = redoStack.pop();
+            undoStack.push(next);
+            applyState(next);
+        }
+
+        function applyState(state) {
+
+            // Temporarily ignore changes during apply
+            if (state.cvHtml) {
+                cvContainer.innerHTML = state.cvHtml;
+            }
+
+            else if (state.html) {
+                cvContainer.innerHTML = state.html;
+            }
+
+            if (state.clHtml) {
+                document.getElementById('cl-content').innerHTML = state.clHtml;
+            }
+
+            // Restore colors
+            document.documentElement.style.setProperty('--primary-blue', state.primaryColor);
+            document.documentElement.style.setProperty('--massy-navy', state.primaryColor);
+            document.getElementById('color-picker').value = state.primaryColor;
+
+            // Re-init drag handles if mode is active
+            if (freeDragMode) {
+                // Remove any existing handles first to avoid duplicates
+                const containers = document.querySelectorAll('.cv-container');
+
+                containers.forEach(canvas => {
+                    canvas.querySelectorAll('.free-drag-handle').forEach(h => h.remove());
+
+                    DRAGGABLE_SELECTORS.forEach(sel => {
+                        canvas.querySelectorAll(sel).forEach(el => {
+                            el.dataset.dragInit = ""; // Force re-init
+                            addDragHandle(el);
+                        });
+                    });
+                });
+            }
+
+            // Garantir la restauration des outils de réglage après application de l'état
+            ensureSettingsButtons();
+
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            const undoBtn = document.getElementById('undo-btn');
+            const redoBtn = document.getElementById('redo-btn');
+
+            if (undoStack.length > 1) {
+                undoBtn.disabled = false;
+                undoBtn.style.opacity = '1';
+                undoBtn.style.cursor = 'pointer';
+            }
+
+            else {
+                undoBtn.disabled = true;
+                undoBtn.style.opacity = '0.5';
+                undoBtn.style.cursor = 'not-allowed';
+            }
+
+            if (redoStack.length > 0) {
+                redoBtn.disabled = false;
+                redoBtn.style.opacity = '1';
+                redoBtn.style.cursor = 'pointer';
+            }
+
+            else {
+                redoBtn.disabled = true;
+                redoBtn.style.opacity = '0.5';
+                redoBtn.style.cursor = 'not-allowed';
+            }
+        }
+
+        function updateZoom() {
+            const workspace = document.getElementById('document-workspace');
+            const containers = document.querySelectorAll('.cv-container');
+            const isMobile = window.innerWidth <= 850;
+
+            if (isMobile) {
+                if (workspace) {
+                    workspace.style.setProperty('transform', 'none', 'important');
+                    workspace.style.setProperty('width', '100vw', 'important');
+                    workspace.style.setProperty('display', 'block', 'important');
+                    workspace.style.setProperty('overflow', 'hidden', 'important');
+                    workspace.style.setProperty('padding', '0', 'important');
+                    workspace.style.setProperty('margin', '0', 'important');
+                }
+                containers.forEach(container => {
+                    container.style.setProperty('transform-origin', 'top left', 'important');
+                    container.style.setProperty('transform', `scale(${currentScale})`, 'important');
+                    const collapsedMargin = -(1 - currentScale) * 1123 + 10;
+                    container.style.setProperty('margin-bottom', collapsedMargin + 'px', 'important');
+                    container.style.setProperty('margin-left', '0', 'important');
+                    container.style.setProperty('margin-right', '0', 'important');
+                });
+            } else {
+                containers.forEach(container => {
+                    container.style.removeProperty('transform');
+                    container.style.removeProperty('transform-origin');
+                    container.style.removeProperty('margin-bottom');
+                    container.style.removeProperty('margin-left');
+                    container.style.removeProperty('margin-right');
+                });
+                if (workspace) {
+                    workspace.style.transform = `scale(${currentScale})`;
+                    workspace.style.transformOrigin = 'top center';
+                    workspace.style.removeProperty('width');
+                    workspace.style.removeProperty('height');
+                    workspace.style.removeProperty('display');
+                    workspace.style.removeProperty('overflow');
+                    workspace.style.removeProperty('padding');
+                    workspace.style.removeProperty('margin');
+                }
+            }
+            zoomLevelText.innerText = Math.round(currentScale * 100) + '%';
+        }
+
+        function autoFit() {
+            const isMobile = window.innerWidth <= 850;
+            const cvWidth = 794;
+
+            let targetScale;
+            if (isMobile) {
+                targetScale = window.innerWidth / cvWidth;
+            } else {
+                const visibleContainers = document.querySelectorAll('.cv-container');
+                const count = Array.from(visibleContainers).filter(c => c.offsetParent !== null).length || 1;
+                const gap = count > 1 ? 40 * (count - 1) : 0;
+                const totalWorkspaceWidth = cvWidth * count + gap;
+
+                const availableWidth = window.innerWidth - 80;
+                const availableHeight = window.innerHeight - 180;
+                const scaleX = availableWidth / totalWorkspaceWidth;
+                const scaleY = availableHeight / 1123;
+                targetScale = Math.min(scaleX, scaleY);
+            }
+
+            if (targetScale > 1.2) targetScale = 1.2;
+            if (targetScale < 0.2) targetScale = 0.2;
+
+            currentScale = targetScale;
+            updateZoom();
+        }
+
+        // =========================================================
+        // FREE DRAG — CSS TRANSFORM APPROACH
+        //
+        // Each element keeps its normal position in the HTML flow.
+        // We apply transform: translate(tx, ty) to visually move it.
+        // This NEVER breaks layout because transforms don't affect flow.
+        // Each drag ACCUMULATES on top of the previous offset.
+        // =========================================================
+        let freeDragMode = false;
+        let snapToGrid = false;
+        const GRID_SIZE = 8; // px — snap grid cell size (finer grid)
+        let activeDragEl = null;
+        let startMouseX = 0,
+            startMouseY = 0;
+        let startTX = 0,
+            startTY = 0; // accumulated translate before current drag
+
+        // Per-element accumulated offsets
+        const offsets = new Map(); // el → { tx, ty }
+
+        const DRAGGABLE_SELECTORS = ['.profile-photo-container',
+            '.header-name',
+            '.header-job',
+            '.section-bar',
+            '.section-container',
+            '.experience-item',
+            '.added-text-block',
+            '.added-photo-el'
+        ];
+        // Note: CL paragraphs are now wrapped in .added-text-block containers
+
+        function getOffset(el) {
+            if (!offsets.has(el)) {
+                // Lire le transform inline existant (restauré depuis le localStorage)
+                // pour ne pas écraser la position sauvegardée
+                var existing = el.style.transform || '';
+                var m = existing.match(/translate\((-?[\d.]+)px, \s*(-?[\d.]+)px\)/);
+
+                offsets.set(el, m ? {
+                    tx: parseFloat(m[1]), ty: parseFloat(m[2])
+                }
+
+                    : {
+                        tx: 0, ty: 0
+                    });
+            }
+
+            return offsets.get(el);
+        }
+
+        function applyTransform(el, sync = true) {
+            const {
+                tx,
+                ty
+            }
+
+                = getOffset(el);
+
+            el.style.transform = `translate(${Math.round(tx)}px, ${Math.round(ty)}px)`;
+
+            // Mirror movements for specific shared items
+            if (sync) {
+                const mirroredClasses = ['profile-photo-container',
+                    'header-name',
+                    'header-job',
+                    'section-bar',
+                    'footer-bar',
+                    'section-container'];
+                const matchedClass = mirroredClasses.find(cls => el.classList.contains(cls));
+
+                if (matchedClass) {
+                    const sourceCont = el.closest('.cv-container');
+                    const index = Array.from(sourceCont.querySelectorAll('.' + matchedClass)).indexOf(el);
+
+                    document.querySelectorAll('.cv-container').forEach(otherCont => {
+                        if (otherCont !== sourceCont) {
+                            const mirror = otherCont.querySelectorAll('.' + matchedClass)[index];
+
+                            if (mirror) {
+                                const off = getOffset(mirror);
+                                // Safety: For sidebars, keep tx to 0 unless manually dragged to keep it within bounds
+                                let newTx = tx;
+                                if (matchedClass === 'section-container' && Math.abs(tx) > 200) newTx = 0;
+
+                                off.tx = newTx;
+                                off.ty = ty;
+                                applyTransform(mirror, false);
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        // Maintient overflow:visible si des éléments ajoutés existent en dehors de la page
+        function syncContainerOverflow(canvas) {
+            var hasOutside = canvas.querySelector('[id^="added-el-"]') !== null;
+            canvas.style.overflow = hasOutside ? 'visible' : 'hidden';
+        }
+
+        function toggleDragMode() {
+            freeDragMode = !freeDragMode;
+            const btn = document.getElementById('drag-mode-btn');
+            const containers = document.querySelectorAll('.cv-container');
+
+            if (freeDragMode) {
+                btn.innerHTML = '<i class="fas fa-check"></i> Terminer le déplacement (Editer texte)';
+                btn.style.background = 'var(--massy-yellow, #ffd60a)';
+                btn.style.color = '#1a2a4e';
+
+                containers.forEach(canvas => {
+                    canvas.classList.add('cv-edit-mode');
+                    canvas.style.overflow = 'visible';
+
+                    ensureSettingsButtons();
+
+                    // Add drag handles + make each element relatively movable
+                    DRAGGABLE_SELECTORS.forEach(sel => {
+                        canvas.querySelectorAll(sel).forEach(el => {
+
+                            // Save original position if not already saved
+                            if (!el.dataset.origPos) {
+                                el.dataset.origPos = window.getComputedStyle(el).position;
+                            }
+
+                            // Only set relative if it's currently static (to allow z-index/transforms)
+                            // If it's already absolute (like added items), keep it absolute!
+                            if (el.dataset.origPos === 'static') {
+                                el.style.position = 'relative';
+                            }
+
+                            el.style.zIndex = '10';
+                            applyTransform(el);
+                            addDragHandle(el);
+                        });
+                    });
+
+                    // Disable text editing while in drag mode
+                    canvas.querySelectorAll('[contenteditable]').forEach(el => {
+                        el.dataset.ce = el.contentEditable;
+                        el.contentEditable = 'false';
+                    });
+                });
+
+                // Show grid snap toggle button and enable it by default
+                document.getElementById('grid-snap-btn').style.display = 'flex';
+                if (!snapToGrid) toggleGridSnap();
+
+                // Suppression des addEventListener conditionnels qui bloquaient les réglages
+            }
+
+            else {
+
+                btn.innerHTML = '<i class="fas fa-arrows-alt"></i> Mode Déplacement';
+                btn.style.background = '';
+                btn.style.color = '';
+
+                containers.forEach(canvas => {
+                    canvas.classList.remove('cv-edit-mode');
+                    // Garder overflow:visible si des éléments ajoutés sont en dehors de la page
+                    syncContainerOverflow(canvas);
+
+                    // Restore original positions and clean up handles
+                    DRAGGABLE_SELECTORS.forEach(sel => {
+                        canvas.querySelectorAll(sel).forEach(el => {
+                            if (el.dataset.origPos) {
+                                el.style.position = el.dataset.origPos === 'static' ? '' : el.dataset.origPos;
+                                el.removeAttribute('data-orig-pos');
+                            }
+                        });
+                    });
+
+                    // Re-enable text editing unconditionally to avoid any stuck states
+                    canvas.querySelectorAll('[contenteditable], [data-ce]').forEach(el => {
+                        el.contentEditable = 'true';
+                        el.removeAttribute('data-ce');
+                    });
+
+                    // Remove handles; keep transforms intact so positions are preserved
+                    canvas.querySelectorAll('.free-drag-handle').forEach(h => h.remove());
+                });
+
+                // Hide grid snap toggle + disable snap + remove overlay
+                const snapBtn = document.getElementById('grid-snap-btn');
+                snapBtn.style.display = 'none';
+
+                if (snapToGrid) {
+                    snapToGrid = false;
+                    snapBtn.style.background = '#e8ecff';
+                    snapBtn.style.color = '#142355';
+                    snapBtn.innerHTML = '<i class="fas fa-th"></i> Grille';
+                }
+
+                document.querySelectorAll('.grid-overlay-el').forEach(el => el.remove());
+            }
+        }
+
+        function addDragHandle(el) {
+            // Check if already initialized to avoid duplicate listeners
+            if (el.dataset.dragInit) return;
+            el.dataset.dragInit = "true";
+
+            el.addEventListener('mousedown', e => {
+                if (!freeDragMode) return;
+
+                // Prevent drag if clicking a BUTTON or a DELETE icon or the global delete button
+                if (e.target.closest('button') || e.target.closest('.delete-added-el') || e.target.closest('.ui-control') || e.target.closest('.global-delete-btn')) {
+                    return;
+                }
+
+                // Only block if the target is ALREADY editable AND we are NOT in free drag mode
+                if (!freeDragMode && e.target.closest('[contenteditable="true"]')) {
+                    return;
+                }
+
+                e.preventDefault();
+
+                activeDragEl = el;
+                startMouseX = e.clientX;
+                startMouseY = e.clientY;
+                const off = getOffset(el);
+                startTX = off.tx;
+                startTY = off.ty;
+
+                // Calculate base position relative to container
+                const rect = el.getBoundingClientRect();
+                const containerRect = el.closest('.cv-container').getBoundingClientRect();
+                el._baseX = (rect.left - containerRect.left) / currentScale - startTX;
+                el._baseY = (rect.top - containerRect.top) / currentScale - startTY;
+
+                el.style.zIndex = '9999';
+                el.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+                el.style.opacity = '0.9';
+            });
+        }
+
+        // Ajout GLOBAL des écouteurs pour supporter à la fois le drag (Mode Déplacement) et le Redimensionnement
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        function onMouseMove(e) {
+
+            // Handle BLOCK RESIZING with handles
+            if (activeResizeEl && activeResizeType) {
+                const dy = (e.clientY - startMouseY) / currentScale;
+                const dx = (e.clientX - startMouseX) / currentScale;
+
+                if (activeResizeType === 'width') {
+                    // Calcul d'une largeur mini plus stable (80px)
+                    const newWidth = Math.max(80, (startResizeVal + dx));
+                    activeResizeEl.style.width = newWidth + 'px';
+                    // Forcer le texte à rester à gauche
+                    activeResizeEl.style.textAlign = 'left';
+                }
+
+                else if (activeResizeType === 'top') {
+                    // Drag top handle UP (dy < 0) -> Increase marginTop
+                    activeResizeEl.style.marginTop = Math.max(0, (startResizeVal - dy)) + 'px';
+                }
+
+                else if (activeResizeType === 'bottom') {
+                    // Drag bottom handle DOWN (dy > 0) -> Increase marginBottom
+                    activeResizeEl.style.marginBottom = Math.max(0, (startResizeVal + dy)) + 'px';
+                }
+
+                return;
+            }
+
+            if (!activeDragEl) return;
+
+            const dx = (e.clientX - startMouseX) / currentScale;
+            const dy = (e.clientY - startMouseY) / currentScale;
+
+            let targetX = startTX + dx;
+            let targetY = startTY + dy;
+
+            if (snapToGrid) {
+                const container = activeDragEl.closest('.cv-container');
+                if (!container) return;
+                const contRect = container.getBoundingClientRect();
+                const elRect = activeDragEl.getBoundingClientRect();
+
+                const cWidth = contRect.width / currentScale;
+                const cHeight = contRect.height / currentScale;
+                const elWidth = elRect.width / currentScale;
+                const elHeight = elRect.height / currentScale;
+
+                // Snap absolute position to grid dots
+                let absX = activeDragEl._baseX + targetX;
+                let absY = activeDragEl._baseY + targetY;
+
+                let snappedAbsX = Math.round(absX / GRID_SIZE) * GRID_SIZE;
+                let snappedAbsY = Math.round(absY / GRID_SIZE) * GRID_SIZE;
+
+                // MAGNETIC EDGES (Snap to container borders if close)
+                const threshold = 12; // Snap reach in pixels
+
+                // Horizontal magnetic snap
+                if (Math.abs(snappedAbsX) < threshold) snappedAbsX = 0;
+                if (Math.abs(snappedAbsX + elWidth - cWidth) < threshold) snappedAbsX = cWidth - elWidth;
+
+                // Vertical magnetic snap
+                if (Math.abs(snappedAbsY) < threshold) snappedAbsY = 0;
+                const bottomDist = Math.abs(snappedAbsY + elHeight - cHeight);
+                if (bottomDist < threshold) snappedAbsY = cHeight - elHeight;
+
+                // FORCE FOOTER ALIGNMENT (Horizontal lock to avoid jitter)
+                if (activeDragEl.classList.contains('footer-bar')) {
+                    snappedAbsX = 0;
+                }
+
+                targetX = snappedAbsX - activeDragEl._baseX;
+                targetY = snappedAbsY - activeDragEl._baseY;
+            }
+
+            const off = getOffset(activeDragEl);
+            off.tx = targetX;
+            off.ty = targetY;
+            applyTransform(activeDragEl);
+        }
+
+        function toggleGridSnap() {
+            snapToGrid = !snapToGrid;
+            const btn = document.getElementById('grid-snap-btn');
+            const containers = document.querySelectorAll('.cv-container');
+
+            if (snapToGrid) {
+                btn.style.background = '#142355';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#142355';
+                btn.innerHTML = '<i class="fas fa-th"></i> Grille ON';
+
+                containers.forEach(canvas => {
+                    if (!canvas.querySelector('.grid-overlay-el')) {
+                        const el = document.createElement('div');
+                        el.className = 'grid-overlay-el';
+                        canvas.appendChild(el);
+                    }
+                });
+            }
+
+            else {
+                btn.style.background = '#eef2ff';
+                btn.style.color = '#142355';
+                btn.style.borderColor = 'rgba(20,35,85,0.1)';
+                btn.innerHTML = '<i class="fas fa-th"></i> Grille';
+                document.querySelectorAll('.grid-overlay-el').forEach(el => el.remove());
+            }
+        }
+
+        function onMouseUp(e) {
+            if (activeResizeEl) {
+                activeResizeEl.classList.remove('resizing-active');
+                document.querySelectorAll('.resizing-active-handle').forEach(h => h.classList.remove('resizing-active-handle'));
+                document.body.style.cursor = '';
+                saveState();
+                activeResizeEl = null;
+                activeResizeType = null;
+            }
+
+            if (activeDragEl) {
+                // Determine if element was dragged over CV or Cover Letter
+                const rect = activeDragEl.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                const cvRect = document.getElementById('cv-content').getBoundingClientRect();
+                const clRect = document.getElementById('cl-content').getBoundingClientRect();
+
+                let targetContainer = null;
+
+                // Identify target container based on center coordinates
+                if (centerX > cvRect.left && centerX < cvRect.right && centerY > cvRect.top && centerY < cvRect.bottom) {
+                    targetContainer = document.getElementById('cv-content');
+                }
+
+                else if (centerX > clRect.left && centerX < clRect.right && centerY > clRect.top && centerY < clRect.bottom) {
+                    targetContainer = document.getElementById('cl-content');
+                }
+
+                // MIRROR SYNC & STICKINESS: ensure specific elements don't jump pages or lose sync
+                const sidebarClasses = ['profile-photo-container',
+                    'section-container',
+                    'experience-item',
+                    'added-text-block'];
+                const mirroredClasses = ['profile-photo-container',
+                    'header-name',
+                    'header-job',
+                    'section-bar',
+                    'section-container',
+                    'experience-item',
+                    'added-text-block'];
+                const matchedClass = mirroredClasses.find(cls => activeDragEl.classList.contains(cls));
+
+                if (matchedClass) {
+                    targetContainer = activeDragEl.closest('.cv-container'); // Force stay in current document
+                }
+
+                // Reparent logic if moved to a different container
+                if (targetContainer && activeDragEl.closest('.cv-container') !== targetContainer) {
+                    // SMART REPARENTING: Force sidebar elements into the .sidebar sub-container
+                    let finalParent = targetContainer;
+                    const isSidebarEl = sidebarClasses.some(cls => activeDragEl.classList.contains(cls));
+
+                    if (isSidebarEl) {
+                        const sidebar = targetContainer.querySelector('.sidebar');
+                        if (sidebar) finalParent = sidebar;
+                    }
+
+                    finalParent.appendChild(activeDragEl);
+                    const targetRect = finalParent.getBoundingClientRect();
+
+                    // Adjust inline styles to keep visual consistency
+                    activeDragEl.style.position = 'absolute';
+                    // CLEAR CONFLICTING ANCHORS
+                    activeDragEl.style.bottom = 'auto';
+                    activeDragEl.style.right = 'auto';
+
+                    let newLeft = (rect.left - targetRect.left) / currentScale;
+                    let newTop = (rect.top - targetRect.top) / currentScale;
+
+                    // Special case for footer or sidebar elements back to 0
+                    if (activeDragEl.classList.contains('footer-bar') || isSidebarEl) {
+                        activeDragEl.style.width = isSidebarEl ? '' : '100%';
+                        newLeft = 0;
+                    }
+
+                    activeDragEl.style.left = newLeft + 'px';
+                    activeDragEl.style.top = newTop + 'px';
+
+                    // Reset transform offsets to 0 since we baked it into left/top
+                    const off = getOffset(activeDragEl);
+                    off.tx = 0;
+                    off.ty = 0;
+                    applyTransform(activeDragEl);
+
+                    // Reset grid snapping base
+                    activeDragEl._baseX = parseFloat(activeDragEl.style.left) || 0;
+                    activeDragEl._baseY = parseFloat(activeDragEl.style.top) || 0;
+                }
+
+                // POST-DROP SYNC: ensure all mirrors match the final position of the moved element based on index
+                if (matchedClass) {
+                    const off = getOffset(activeDragEl);
+                    const sourceCont = activeDragEl.closest('.cv-container');
+                    const index = Array.from(sourceCont.querySelectorAll('.' + matchedClass)).indexOf(activeDragEl);
+
+                    document.querySelectorAll('.cv-container').forEach(otherCont => {
+                        if (otherCont !== sourceCont) {
+                            const mirror = otherCont.querySelectorAll('.' + matchedClass)[index];
+
+                            if (mirror) {
+                                const oOff = getOffset(mirror);
+                                oOff.tx = off.tx;
+                                oOff.ty = off.ty;
+                                applyTransform(mirror, false);
+                            }
+                        }
+                    });
+                }
+
+                activeDragEl.style.zIndex = '10';
+                activeDragEl.style.boxShadow = '';
+                activeDragEl.style.opacity = '1';
+                activeDragEl = null;
+                saveState(); // Save state after drag finishes
+            }
+        }
+
+        function resetPositions() {
+
+            // Clear all accumulated offsets and reset transforms
+            offsets.forEach(function (_, el) {
+                // Ne PAS réinitialiser les éléments ajoutés par l'utilisateur
+                // (ils sont en position absolute et doivent garder leur place)
+                var isAdded = el.id && (el.id.startsWith('added-el-') || el.classList.contains('added-text-block'));
+                if (isAdded) return; // skip — garder leur position
+
+                el.style.transform = '';
+                el.style.position = '';
+                el.style.zIndex = '';
+
+                // Specific recovery for sections
+                if (el.classList.contains('section-container')) {
+                    el.style.left = '';
+                    el.style.top = '';
+                }
+            });
+
+            // Toujours réinitialiser les pieds de page (footer-bar)
+            document.querySelectorAll('.footer-bar').forEach(fb => {
+                fb.style.transform = '';
+                fb.style.zIndex = '';
+            });
+            offsets.clear();
+            activeDragEl = null;
+
+            // Remove handles
+            document.querySelectorAll('.free-drag-handle').forEach(h => h.remove());
+            saveState();
+
+            if (freeDragMode) {
+                const containers = document.querySelectorAll('.cv-container');
+
+                containers.forEach(canvas => {
+                    DRAGGABLE_SELECTORS.forEach(sel => {
+                        canvas.querySelectorAll(sel).forEach(el => {
+                            // Ne pas forcer "relative" sur les éléments ajoutés (déjà en absolu)
+                            var isAdded = el.id && el.id.startsWith('added-el-');
+
+                            if (!isAdded) {
+                                el.style.position = 'relative';
+                            }
+
+                            el.style.zIndex = '10';
+                            addDragHandle(el);
+                        });
+                    });
+                });
+            }
+        }
+
+        function hardReset() {
+            if (confirm("⚠️ RÉCUPÉRATION DES DONNÉES\n\nCela va recharger le contenu original du fichier (avec toutes vos expériences).\n\nAttention : vos déplacements actuels seront réinitialisés. Continuer ?")) {
+                localStorage.removeItem('cv_carole_state_v4');
+                location.reload();
+            }
+        }
+
+        // =========================================================
+        // UI SANITIZATION — Prevent saving temporary UI elements
+        // =========================================================
+        function sanitizeDocument(container) {
+            if (!container) return;
+            // Remove all temporary UI elements that shouldn't be persisted
+            const toRemove = ['.free-drag-handle',
+                '.add-btn',
+                '.delete-btn',
+                '.ui-control',
+                '.grid-overlay-el',
+                '.drag-handle',
+                '.exp-color-btn',
+                // old class (legacy cleanup)
+                '.job-logo-badge i' // Remove default icons if they were saved over
+            ];
+
+            // NOTE: .exp-color-swatch is intentionally NOT removed — it's part of the saved HTML
+            toRemove.forEach(sel => {
+                container.querySelectorAll(sel).forEach(el => el.remove());
+            });
+
+            // CRITICAL: Ensure all contenteditable elements are set to true in the saved HTML
+            // This prevents saving the "false" state applied during drag mode
+            container.querySelectorAll('[contenteditable]').forEach(el => {
+                el.contentEditable = "true";
+            });
+
+            // Remove local state flags that shouldn't be loaded back into the DOM
+            container.querySelectorAll('[data-drag-init]').forEach(el => {
+                el.removeAttribute('data-drag-init');
+            });
+
+            container.querySelectorAll('[data-ce]').forEach(el => {
+                el.removeAttribute('data-ce');
+            });
+        }
+
+
+        // =========================================================
+        // EXPERIENCE CARD COLOR MANAGEMENT — panel Icônes
+        // =========================================================
+
+        // Couleurs par défaut des 4 premières expériences
+        var EXP_COLOR_DEFAULTS = ['#466EFF',
+            '#00DC78',
+            '#FF6B4A',
+            '#829BFA'];
+
+        function rgbToHex(rgb) {
+            if (!rgb || rgb === 'initial' || rgb === '' || rgb === 'rgba(0, 0, 0, 0)') return null;
+            if (rgb.startsWith('#')) return rgb;
+            var result = rgb.match(/\d+/g);
+            if (!result || result.length < 3) return null;
+
+            return '#' + result.slice(0, 3).map(function (n) {
+                return parseInt(n).toString(16).padStart(2, '0');
+            }).join('');
+        }
+
+        // Applique une couleur sur la carte d'index donné + met à jour le preview du panneau
+        function setExpColorByIndex(index, color) {
+            var items = document.querySelectorAll('.experience-item');
+            if (index >= items.length) return;
+            var item = items[index];
+            // Bordure
+            item.style.borderLeftColor = color;
+            item.style.borderLeftWidth = '4px';
+            item.style.borderLeftStyle = 'solid';
+            // Logo
+            var logo = item.querySelector('.job-logo, .job-logo-badge');
+
+            if (logo) {
+                logo.style.color = color;
+                logo.style.background = 'color-mix(in srgb, ' + color + ' 10%, transparent)';
+            }
+
+            // Nom entreprise (nouvelles cartes)
+            var company = item.querySelector('.job-company');
+            if (company) company.style.color = color;
+            // Mettre à jour le preview dans le panneau
+            var preview = document.getElementById('preview-exp-' + index);
+
+            if (preview) {
+                preview.style.background = 'color-mix(in srgb, ' + color + ' 15%, transparent)';
+                var icon = preview.querySelector('i');
+                if (icon) icon.style.color = color;
+            }
+
+            // Mettre à jour le color picker dans le panneau
+            var picker = document.getElementById('exp-color-picker-' + index);
+            if (picker) picker.value = color;
+            // Sauvegarde avec délai
+            clearTimeout(window._expColorSaveTimeout);
+
+            window._expColorSaveTimeout = setTimeout(function () {
+                saveState();
+            }
+
+                , 500);
+        }
+
+        // Alias utilisé par l'ancien système (setExpColor par référence DOM directe)
+        function setExpColor(item, color) {
+            var items = Array.from(document.querySelectorAll('.experience-item'));
+            var idx = items.indexOf(item);
+
+            if (idx >= 0) {
+                setExpColorByIndex(idx, color);
+            }
+        }
+
+        // Restaure les couleurs exp depuis les données sauvegardées
+        function applyExpColors(data) {
+            var items = document.querySelectorAll('.experience-item');
+
+            items.forEach(function (item, i) {
+                var key = 'expColor_' + i;
+                var color = data[key];
+
+                if (color) {
+                    item.style.borderLeftColor = color;
+                    item.style.borderLeftWidth = '4px';
+                    item.style.borderLeftStyle = 'solid';
+                    var logo = item.querySelector('.job-logo, .job-logo-badge');
+
+                    if (logo) {
+                        logo.style.color = color;
+                        logo.style.background = 'color-mix(in srgb, ' + color + ' 10%, transparent)';
+                    }
+
+                    var company = item.querySelector('.job-company');
+                    if (company) company.style.color = color;
+                    // Mettre à jour le panneau
+                    var preview = document.getElementById('preview-exp-' + i);
+
+                    if (preview) {
+                        preview.style.background = 'color-mix(in srgb, ' + color + ' 15%, transparent)';
+                        var icon = preview.querySelector('i');
+                        if (icon) icon.style.color = color;
+                    }
+
+                    var picker = document.getElementById('exp-color-picker-' + i);
+                    if (picker) picker.value = color;
+                }
+            });
+        }
+
+        // Crée dynamiquement une ligne dans le panneau Icônes pour une expérience supplémentaire
+        function addExpColorRowToPanel(index, color) {
+            // Ne pas ajouter si elle existe déjà
+            if (document.getElementById('exp-color-picker-' + index)) return;
+            var icons = ['fa-building',
+                'fa-industry',
+                'fa-briefcase',
+                'fa-user-tie',
+                'fa-briefcase',
+                'fa-industry',
+                'fa-building',
+                'fa-user-tie'];
+            var iconClass = icons[index % icons.length];
+            var c = color || '#466EFF';
+            // Trouver le bouton "Tout réinitialiser" pour insérer avant lui
+            var resetBtn = document.querySelector('#icon-menu button[onclick="resetAllIconColors()"]');
+            if (!resetBtn) return;
+            var row = document.createElement('div');
+            row.id = 'exp-panel-row-' + index;
+            row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;';
+            row.innerHTML = '<div style="display:flex; align-items:center; gap:8px;">' + '<div id="preview-exp-' + index + '" style="width:26px; height:26px; border-radius:8px; background:color-mix(in srgb, ' + c + ' 15%, transparent); display:flex; align-items:center; justify-content:center;">' + '<i class="fas ' + iconClass + '" style="font-size:0.7rem; color:' + c + ';"></i>' + '</div>' + '<span style="font-size:0.82rem; font-weight:600; color:#142355;">Expérience ' + (index + 1) + '</span>' + '</div>' + '<div style="display:flex; align-items:center; gap:6px;">' + '<input type="color" id="exp-color-picker-' + index + '" value="' + c + '" ' + 'oninput="setExpColorByIndex(' + index + ', this.value)" ' + 'style="border:none; width:36px; height:28px; padding:2px; cursor:pointer; border-radius:8px; background:#f0f0f0;">' + '<button onclick="setExpColorByIndex(' + index + ', \'' + c + '\')" title="Réinitialiser" ' + 'style="background:none; border:1px solid #eee; border-radius:6px; width:24px; height:24px; cursor:pointer; color:#aaa; font-size:0.7rem; display:flex; align-items:center; justify-content:center;">' + '<i class="fas fa-undo"></i>' + '</button>' + '</div>';
+            resetBtn.parentNode.insertBefore(row, resetBtn);
+        }
+
+        // Restaure les couleurs exp depuis les données sauvegardées + ajoute les lignes manquantes dans le panneau
+        function applyExpColors(data) {
+            var items = document.querySelectorAll('.experience-item');
+            var expDefaults = ['#466EFF',
+                '#00DC78',
+                '#FF6B4A',
+                '#829BFA'];
+
+            items.forEach(function (item, i) {
+
+                // Créer une ligne dans le panel pour les expériences > 4 (au-delà des lignes statiques)
+                if (i >= 4) {
+                    var defColor = (data && data['expColor_' + i]) || expDefaults[i % expDefaults.length];
+                    addExpColorRowToPanel(i, defColor);
+                }
+
+                if (!data) return;
+                var key = 'expColor_' + i;
+                var color = data[key];
+
+                if (color) {
+                    item.style.borderLeftColor = color;
+                    item.style.borderLeftWidth = '4px';
+                    item.style.borderLeftStyle = 'solid';
+                    var logo = item.querySelector('.job-logo, .job-logo-badge');
+
+                    if (logo) {
+                        logo.style.color = color;
+                        logo.style.background = 'color-mix(in srgb, ' + color + ' 10%, transparent)';
+                    }
+
+                    var company = item.querySelector('.job-company');
+                    if (company) company.style.color = color;
+                    // Mettre à jour le panneau
+                    var preview = document.getElementById('preview-exp-' + i);
+
+                    if (preview) {
+                        preview.style.background = 'color-mix(in srgb, ' + color + ' 15%, transparent)';
+                        var icon = preview.querySelector('i');
+                        if (icon) icon.style.color = color;
+                    }
+
+                    var picker = document.getElementById('exp-color-picker-' + i);
+                    if (picker) picker.value = color;
+                }
+            });
+        }
+
+        // Fallback vide (plus de swatches physiques)
+        function initExpColorPickers() {
+            /* no-op — géré par le panneau Icônes */
+        }
+
+        // =========================================================
+        // INIT
+        // =========================================================
+        function saveState() {
+            // Create a clean clone to save without UI elements
+            const cvClone = cvContainer.cloneNode(true);
+            const clClone = document.getElementById('cl-content').cloneNode(true);
+
+            sanitizeDocument(cvClone);
+            sanitizeDocument(clClone);
+
+            // Collect icon colors (sidebar groups)
+            const iconColors = {}
+
+                ;
+
+            Object.keys(ICON_CSS_VARS).forEach(group => {
+                const val = document.documentElement.style.getPropertyValue(ICON_CSS_VARS[group]).trim();
+                iconColors['iconColor_' + group] = val || ICON_COLOR_DEFAULTS[group];
+            });
+
+            // Collect experience card colors
+            document.querySelectorAll('.experience-item').forEach(function (item, i) {
+                var c = item.style.borderLeftColor;
+                if (c) iconColors['expColor_' + i] = rgbToHex(c) || c;
+            });
+
+            // Get state including colors from CSS variables
+            const state = {
+                cvHtml: cvClone.innerHTML,
+                clHtml: clClone.innerHTML,
+                primaryColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-blue').trim(),
+                sidebarMask: document.documentElement.style.getPropertyValue('--sidebar-mask').trim() || '',
+                sidebarWidth: document.documentElement.style.getPropertyValue('--sidebar-width').trim() || '',
+                footerMask: document.documentElement.style.getPropertyValue('--footer-mask').trim() || '',
+                footerHeight: document.documentElement.style.getPropertyValue('--footer-pt').trim() || '',
+                titleMask: document.documentElement.style.getPropertyValue('--title-mask').trim() || '',
+                titleHeight: document.documentElement.style.getPropertyValue('--title-pt').trim() || '',
+                ...iconColors
+            }
+
+                ;
+
+            // Persistence
+            localStorage.setItem('cv_carole_state_v4', JSON.stringify({
+                cv: state.cvHtml,
+                cl: state.clHtml,
+                color: state.primaryColor,
+                sidebarMask: state.sidebarMask,
+                sidebarWidth: state.sidebarWidth,
+                footerMask: state.footerMask,
+                footerHeight: state.footerHeight,
+                titleMask: state.titleMask,
+                titleHeight: state.titleHeight,
+                ...iconColors
+            }));
+
+            // Avoid duplicate stack entries
+            if (undoStack.length > 0 && undoStack[undoStack.length - 1].cvHtml === state.cvHtml) return;
+
+            undoStack.push(state);
+            if (undoStack.length > 40) undoStack.shift();
+            redoStack = [];
+            updateUndoRedoButtons();
+        }
+
+        // =========================================================
+        // INIT
+        // =========================================================
+        window.addEventListener('load', () => {
+            // 1. Load from localStorage if exists (using V3 to force fresh content)
+            const saved = localStorage.getItem('cv_carole_state_v4');
+
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.cv) cvContainer.innerHTML = data.cv;
+                    if (data.cl) document.getElementById('cl-content').innerHTML = data.cl;
+
+                    // Clean up any ghost UI elements from localStorage
+                    sanitizeDocument(cvContainer);
+                    sanitizeDocument(document.getElementById('cl-content'));
+
+                    if (data.color) {
+                        document.documentElement.style.setProperty('--primary-blue', data.color);
+                        document.documentElement.style.setProperty('--massy-navy', data.color);
+                    }
+
+                    if (data.sidebarMask) {
+                        document.documentElement.style.setProperty('--sidebar-mask', data.sidebarMask);
+                    }
+
+                    if (data.sidebarWidth) {
+                        document.documentElement.style.setProperty('--sidebar-width', data.sidebarWidth);
+                        const widthRange = document.getElementById('sidebar-width-range');
+                        if (widthRange) widthRange.value = parseInt(data.sidebarWidth);
+                        const widthVal = document.getElementById('sidebar-width-val');
+                        if (widthVal) widthVal.innerText = data.sidebarWidth;
+                    }
+
+                    if (data.footerMask) {
+                        document.documentElement.style.setProperty('--footer-mask', data.footerMask);
+                    }
+
+                    if (data.footerHeight) {
+                        document.documentElement.style.setProperty('--footer-pt', data.footerHeight);
+                        const fbRange = document.getElementById('footer-height-range');
+                        if (fbRange) fbRange.value = parseInt(data.footerHeight);
+                        const fbVal = document.getElementById('footer-height-val');
+                        if (fbVal) fbVal.innerText = data.footerHeight;
+                    }
+
+                    if (data.titleMask) {
+                        document.documentElement.style.setProperty('--title-mask', data.titleMask);
+                    }
+
+                    if (data.titleHeight) {
+                        document.documentElement.style.setProperty('--title-pt', data.titleHeight);
+                        const tRange = document.getElementById('title-height-range');
+                        if (tRange) tRange.value = parseInt(data.titleHeight);
+                        const tVal = document.getElementById('title-height-val');
+                        if (tVal) tVal.innerText = data.titleHeight;
+                    }
+
+                    // Restore icon colors (sidebar groups)
+                    applyIconColors(data);
+                    // Restore experience card colors
+                    applyExpColors(data);
+
+                    // Rendre visibles les éléments ajoutés hors page dès l'ouverture
+                    document.querySelectorAll('.cv-container').forEach(function (c) {
+                        syncContainerOverflow(c);
+                    });
+
+                    // REPAIR: Force all contenteditable items to true on load
+                    document.querySelectorAll('[contenteditable], [data-ce]').forEach(el => {
+                        el.contentEditable = "true";
+                    });
+
+                    // WIPE: Remove all old red cross buttons
+                    document.querySelectorAll('.delete-added-el').forEach(el => el.remove());
+
+                    ensureSettingsButtons(); // AJOUT : Garantit que les réglages apparaissent sur les anciens blocs
+
+                    // GHOST CLEANUP: Remove rogue sidebar elements that escaped the sidebar
+                    document.querySelectorAll('.section-container, .profile-photo-container').forEach(el => {
+                        if (!el.closest('.sidebar')) el.remove();
+                    });
+
+                    // RECOVERY: Ensure Contact block exists in CL sidebar
+                    const clSidebar = document.querySelector('#cl-content .sidebar');
+
+                    if (clSidebar && !clSidebar.querySelector('.contact-list')) {
+                        const cvContact = document.querySelector('#cv-content .section-container');
+
+                        if (cvContact) {
+                            const recovery = cvContact.cloneNode(true);
+                            recovery.style.transform = '';
+                            recovery.style.left = '';
+                            recovery.style.top = '';
+                            recovery.style.position = '';
+                            clSidebar.appendChild(recovery);
+                        }
+                    }
+
+                    // FINAL POLISH: There should be only ONE profile photo per container
+                    document.querySelectorAll('.cv-container').forEach(cont => {
+                        const photos = cont.querySelectorAll('.profile-photo-container');
+
+                        if (photos.length > 1) {
+                            for (let i = 1; i < photos.length; i++) photos[i].remove();
+                        }
+                    });
+
+                    // RESTORE POSITIONS: S'assurer que les éléments déplacés restent figés
+                    document.querySelectorAll('.section-container, .experience-item, .added-text-block, .profile-photo-container, .header-name, .header-job').forEach(el => {
+                        if (el.style.transform && el.style.transform.includes('translate')) {
+
+                            // Si l'élément a été déplacé, il doit garder sa position pour rester figé
+                            if (!el.id || !el.id.startsWith('added-el-')) {
+                                el.style.position = 'relative';
+                            }
+
+                            el.style.zIndex = '10';
+                        }
+                    });
+
+                    // CLEANUP: Force Footer Bar presence
+                    [cvContainer, document.getElementById('cl-content')].forEach(cont => {
+                        if (cont && !cont.querySelector('.footer-bar')) {
+                            const fb = document.createElement('div');
+                            fb.className = 'footer-bar';
+                            fb.innerHTML = '<div class="footer-logo" contenteditable="true">MA VILLE AVANCE</div>';
+                            cont.appendChild(fb);
+                        }
+
+                        // FORCE FOOTER POSITION: Toujours au bas de la page, sans décalage
+                        cont.querySelectorAll('.footer-bar').forEach(fb => {
+                            fb.style.transform = '';
+                            fb.style.position = 'absolute';
+                            fb.style.bottom = '0';
+                            fb.style.left = '0';
+                            fb.style.right = '0';
+                        });
+                    });
+                }
+
+                catch (e) {
+                    console.error("Load error", e);
+                }
+            }
+
+            // MIGRATION: Ensure all CL content is properly wrapped in added-text-blocks
+            const containers_cl = document.querySelectorAll('.cv-container');
+
+            containers_cl.forEach(canvas => {
+                if (canvas.id === 'cl-content') {
+                    const clMain = canvas.querySelector('.main-content');
+
+                    if (clMain) {
+                        const elementsToWrap = Array.from(clMain.children).filter(child => !child.classList.contains('added-text-block') && !child.classList.contains('section-bar') && !child.classList.contains('header') && child.tagName !== 'STYLE' && child.innerText.trim() !== ""
+                        );
+
+                        elementsToWrap.forEach((el) => {
+                            const newBlock = document.createElement('div');
+                            newBlock.className = 'added-text-block';
+                            newBlock.style.marginTop = '15px';
+                            const editableArea = document.createElement('div');
+                            editableArea.contentEditable = 'true';
+                            editableArea.style.cssText = 'outline:none; line-height:1.8; color:var(--text-dark); font-size:0.95rem;';
+                            editableArea.innerHTML = el.innerHTML;
+
+                            if (el.style.fontWeight === '700' || el.querySelector('p')?.style.fontWeight === '700' || el.innerText.includes("Carole Jacquelin")) {
+                                editableArea.style.fontWeight = '700';
+                            }
+
+                            newBlock.appendChild(editableArea);
+                            el.parentNode.insertBefore(newBlock, el);
+                            el.remove();
+                        });
+                    }
+                }
+            });
+
+            autoFit();
+            applyExpColors(null); // Synchronise les lignes du panneau Icônes avec les cartes présentes
+
+            // Rendre visibles les éléments ajoutés présents en dehors de la page
+            document.querySelectorAll('.cv-container').forEach(function (c) {
+                syncContainerOverflow(c);
+            });
+            saveState();
+
+            // Listen for text changes
+            document.querySelectorAll('.cv-container').forEach(cont => {
+                cont.addEventListener('input', (e) => {
+                    if (e.target.contentEditable === "true") {
+                        // IDENTITY, FOOTER & SECTION SYNC: Name, Job, Footer, Contact info and Section Titles
+                        const isName = e.target.closest('.header-name');
+                        const isJob = e.target.closest('.header-job');
+                        const isFooter = e.target.closest('.footer-logo');
+                        const isContact = e.target.closest('.contact-list');
+                        const isSecTitle = e.target.closest('.section-title-pill');
+
+                        if (isName) {
+                            document.querySelectorAll('.header-name h1').forEach(h1 => {
+                                if (h1 !== e.target) h1.innerHTML = e.target.innerHTML;
+                            });
+                        }
+
+                        else if (isJob) {
+                            document.querySelectorAll('.header-job h2').forEach(h2 => {
+                                if (h2 !== e.target) h2.innerHTML = e.target.innerHTML;
+                            });
+                        }
+
+                        else if (isFooter) {
+                            document.querySelectorAll('.footer-logo').forEach(f => {
+                                if (f !== e.target) f.innerHTML = e.target.innerHTML;
+                            });
+                        }
+
+                        else if (isSecTitle) {
+                            const sourceCont = e.target.closest('.cv-container');
+                            const index = Array.from(sourceCont.querySelectorAll('.section-title-pill')).indexOf(e.target);
+
+                            document.querySelectorAll('.cv-container').forEach(cont => {
+                                if (cont !== sourceCont) {
+                                    const target = cont.querySelectorAll('.section-title-pill')[index];
+                                    if (target) target.innerHTML = e.target.innerHTML;
+                                }
+                            });
+                        }
+
+                        else if (isContact) {
+                            const parentUl = e.target.closest('ul');
+
+                            if (parentUl) {
+                                const spans = Array.from(parentUl.querySelectorAll('span[contenteditable]'));
+                                const index = spans.indexOf(e.target);
+
+                                document.querySelectorAll('.contact-list').forEach(list => {
+                                    const allSpans = list.querySelectorAll('span[contenteditable]');
+                                    const target = allSpans[index];
+                                    if (target && target !== e.target) target.innerHTML = e.target.innerHTML;
+                                });
+                            }
+                        }
+
+                        clearTimeout(saveTimeout);
+                        saveTimeout = setTimeout(saveState, 1000);
+                    }
+                });
+            });
+
+            // Shortcuts
+            document.addEventListener('keydown', (e) => {
+
+                // Undo/Redo
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    undo();
+                }
+
+                if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                    e.preventDefault();
+                    redo();
+                }
+
+                // Delete shortcut for added blocks
+                if ((e.key === 'Delete' || e.key === 'Backspace') && activeEditableTarget && document.activeElement === activeEditableTarget) {
+
+                    // Only auto-delete if the field is empty or if it's a whole block
+                    if (activeEditableTarget.innerText.trim() === "" || activeEditableTarget.closest('.experience-item, .added-text-block, .section-bar')) {
+
+                        // We check if it's the start of the line or empty to avoid accidental deletions while typing
+                        if (activeEditableTarget.innerText.trim() === "") {
+                            const toRemove = activeEditableTarget.closest('.experience-item, .added-text-block, .section-bar, li');
+
+                            if (toRemove) {
+                                e.preventDefault();
+                                toRemove.remove();
+                                globalDelBtn.style.display = 'none';
+                                activeEditableTarget = null;
+                                saveState();
+                            }
+                        }
+                    }
+                }
+            });
+            // =========================================================
+            // GLOBAL FLOATING DELETE BUTTON FOR ALL EDITABLE TEXTS
+            // =========================================================
+            const globalDelBtn = document.createElement('div');
+            globalDelBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            globalDelBtn.className = 'no-print global-delete-btn';
+            globalDelBtn.title = 'Supprimer cet élément';
+            globalDelBtn.style.cssText = 'display:none; position:absolute; background:#ff4d4d; color:white; border-radius:5px; width:26px; height:26px; text-align:center; line-height:26px; font-size:12px; cursor:pointer; z-index:10000; box-shadow:0 3px 8px rgba(0,0,0,0.25); transition:transform 0.1s;';
+            document.body.appendChild(globalDelBtn);
+
+            const showDelBtn = (target) => {
+                // Find potential parent blocks
+                const block = target.closest('.experience-item, .added-text-block, .section-bar, .section-container, .profile-photo-container, .header-name, .header-job, .added-photo-el');
+
+                if (block || (target.contentEditable === "true") || target.classList.contains('added-photo-el')) {
+                    activeEditableTarget = target;
+                    const rect = (block || target).getBoundingClientRect();
+                    globalDelBtn.style.display = 'block';
+                    globalDelBtn.style.top = (window.scrollY + rect.top - 20) + 'px';
+                    globalDelBtn.style.left = (window.scrollX + rect.right - 10) + 'px';
+                }
+
+                else {
+                    globalDelBtn.style.display = 'none';
+                }
+            }
+
+                ;
+
+            document.addEventListener('focusin', (e) => {
+                if (e.target.contentEditable === "true") showDelBtn(e.target);
+            });
+
+            document.addEventListener('click', (e) => {
+                // If we click a block specifically (even if not on the text itself)
+                const block = e.target.closest('.experience-item, .added-text-block, .section-bar, .section-container, .added-photo-el');
+
+                if (block) {
+                    const ce = block.querySelector('[contenteditable]') || block;
+                    showDelBtn(ce);
+                }
+            });
+
+            // Re-position on input/typing
+            document.addEventListener('input', (e) => {
+                if (activeEditableTarget && globalDelBtn.style.display === 'block') {
+                    const rect = activeEditableTarget.getBoundingClientRect();
+                    globalDelBtn.style.top = (window.scrollY + rect.top - 20) + 'px';
+                    globalDelBtn.style.left = (window.scrollX + rect.right - 10) + 'px';
+                }
+            });
+
+            globalDelBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Keep focus context so we can cleanly delete
+                e.stopPropagation();
+
+                if (activeEditableTarget) {
+                    let toRemove = activeEditableTarget;
+
+                    // Smart removal: remove the wrapper components instead of just the internal text
+                    const expItem = activeEditableTarget.closest('.experience-item');
+                    const addedText = activeEditableTarget.closest('.added-text-block');
+                    const section = activeEditableTarget.closest('.section-bar');
+                    const li = activeEditableTarget.closest('li');
+                    const lang = activeEditableTarget.closest('.language-item');
+                    const skill = activeEditableTarget.closest('.skill-item');
+                    const hName = activeEditableTarget.closest('.header-name');
+                    const hJob = activeEditableTarget.closest('.header-job');
+                    const addedPhoto = activeEditableTarget.closest('.added-photo-el');
+
+                    if (expItem) toRemove = expItem;
+                    else if (addedText) toRemove = addedText;
+                    else if (section) toRemove = section;
+                    else if (hName) toRemove = hName;
+                    else if (hJob) toRemove = hJob;
+                    else if (addedPhoto) toRemove = addedPhoto;
+                    else if (lang) toRemove = lang;
+                    else if (skill) toRemove = skill;
+                    else if (li) toRemove = li;
+
+                    toRemove.remove();
+                    globalDelBtn.style.display = 'none';
+                    activeEditableTarget = null;
+
+                    saveState();
+                }
+            });
+
+            // Hide only if clicking elsewhere (background)
+            document.addEventListener('mousedown', (e) => {
+                if (globalDelBtn.style.display === 'block' && !e.target.closest('.experience-item, .added-text-block, .section-bar, .section-container, .profile-photo-container, .added-photo-el, .global-delete-btn') && e.target.contentEditable !== "true") {
+                    globalDelBtn.style.display = 'none';
+                    activeEditableTarget = null;
+                }
+            });
+
+        });
+        window.addEventListener('resize', autoFit);
+    </script>
+    <div id="pdf-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-pdf"></i>Exporter en PDF</h3><button onclick="closePdfModal()"
+                    class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Que souhaitez-vous exporter ?</p>
+                <div class="export-options"
+                    style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;"><button
+                        onclick="generatePdf('cv')" class="export-option-btn"><i class="fas fa-id-card"></i><span>CV
+                            Uniquement</span></button><button onclick="generatePdf('cl')" class="export-option-btn"><i
+                            class="fas fa-file-alt"></i><span>Lettre de
+                            Motivation</span></button></div><button onclick="generatePdf('both')"
+                    class="export-option-btn full-width" style="width:100%;"><i
+                        class="fas fa-layer-group"></i><span>Dossier Complet</span><small
+                        style="display:block;margin-top:2px;">(CV + Lettre de motivation)</small></button>
+                <div class="preview-loader" id="pdf-loader">
+                    <div class="spinner"
+                        style="width:16px;height:16px;border:2px solid #ddd;border-top-color:#142355;border-radius:50%;animation:spin 1s linear infinite;">
+                    </div><span>Génération de l'aperçu en cours...</span>
+                </div>
+                <style>
+                    @keyframes spin {
+                        100% {
+                            transform: rotate(360deg);
+                        }
+                    }
+                </style>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
