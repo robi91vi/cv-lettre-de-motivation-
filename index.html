@@ -2340,6 +2340,7 @@
                 if (workspace) {
                     workspace.style.setProperty('transform', 'none', 'important');
                     workspace.style.setProperty('width', '100vw', 'important');
+                    workspace.style.setProperty('left', '0', 'important');
                     workspace.style.setProperty('display', 'block', 'important');
                     workspace.style.setProperty('overflow', 'hidden', 'important');
                     workspace.style.setProperty('padding', '0', 'important');
@@ -2362,7 +2363,7 @@
                     container.style.removeProperty('margin-right');
                 });
                 if (workspace) {
-                    workspace.style.transform = `scale(${currentScale})`;
+                    workspace.style.transform = `translateX(-50%) scale(${currentScale})`;
                     workspace.style.transformOrigin = 'top center';
                     workspace.style.removeProperty('width');
                     workspace.style.removeProperty('height');
