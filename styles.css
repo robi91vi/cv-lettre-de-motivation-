@@ -497,7 +497,7 @@ body {
 .job-details {
     padding-left: 16px;
     margin: 0;
-    list-style-type: disc;
+    /* <link rel="stylesheet" href="styles.css?v=5">c; */
 }
 
 .job-details li {
@@ -547,11 +547,11 @@ body {
     padding: 10px 20px;
     border-radius: 50px;
     box-shadow: 0 10px 30px rgba(20, 35, 85, 0.15);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    max-width: 95vw;
+    flex-wrap: wrap;
+    justify-content: center;
     border: 1px solid rgba(255, 255, 255, 0.5);
+    height: auto;
 }
 
 .btn {
