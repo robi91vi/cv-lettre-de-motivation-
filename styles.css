@@ -497,7 +497,7 @@ body {
 .job-details {
     padding-left: 16px;
     margin: 0;
-    /* <link rel="stylesheet" href="styles.css?v=5">c; */
+    list-style-type: disc;
 }
 
 .job-details li {
