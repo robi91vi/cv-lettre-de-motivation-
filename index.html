@@ -11,7 +11,7 @@
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="stylesheet" href="styles.css?v=6">
     <link rel="stylesheet" href="pdf_modal.css?v=2">
     <link rel="stylesheet" href="print_styles.css?v=2">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -2360,6 +2360,7 @@
                 const count = Array.from(visibleContainers).filter(c => c.offsetParent !== null).length || 1;
                 const gap = count > 1 ? 40 * (count - 1) : 0;
                 const totalWorkspaceWidth = cvWidth * count + gap;
+                const scaledWidth = totalWorkspaceWidth * currentScale;
 
                 containers.forEach(container => {
                     container.style.removeProperty('transform');
@@ -2370,8 +2371,8 @@
                 });
                 if (workspace) {
                     workspace.style.setProperty('transform', `scale(${currentScale})`, 'important');
-                    workspace.style.setProperty('transform-origin', 'top center', 'important');
-                    workspace.style.setProperty('width', totalWorkspaceWidth + 'px', 'important');
+                    workspace.style.setProperty('transform-origin', 'top left', 'important');
+                    workspace.style.setProperty('width', scaledWidth + 'px', 'important');
                     workspace.style.setProperty('margin', '0 auto 100px auto', 'important');
                     workspace.style.setProperty('position', 'relative', 'important');
                     workspace.style.setProperty('left', '0', 'important');
