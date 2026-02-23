@@ -2363,14 +2363,16 @@
                     container.style.removeProperty('margin-right');
                 });
                 if (workspace) {
-                    workspace.style.transform = `translateX(-50%) scale(${currentScale})`;
+                    workspace.style.transform = `scale(${currentScale})`;
                     workspace.style.transformOrigin = 'top center';
-                    workspace.style.removeProperty('width');
+                    workspace.style.setProperty('width', 'fit-content', 'important');
+                    workspace.style.setProperty('margin', '0 auto', 'important');
+                    workspace.style.setProperty('position', 'relative', 'important');
+                    workspace.style.setProperty('left', 'auto', 'important');
                     workspace.style.removeProperty('height');
                     workspace.style.removeProperty('display');
                     workspace.style.removeProperty('overflow');
                     workspace.style.removeProperty('padding');
-                    workspace.style.removeProperty('margin');
                 }
             }
             zoomLevelText.innerText = Math.round(currentScale * 100) + '%';

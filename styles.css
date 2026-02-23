@@ -59,8 +59,10 @@ body {
     padding-bottom: 100px;
     transform-origin: top center;
     transition: transform 0.2s ease;
-    position: absolute;
-    left: 50%;
+    margin: 0 auto !important;
+    width: fit-content !important;
+    position: relative !important;
+    left: auto !important;
 }
 
 .cv-container {
