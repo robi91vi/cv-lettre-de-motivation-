@@ -986,6 +986,18 @@
                 ;
 
             // =========================================================
+            // GLOBALS & UI STATE
+            // =========================================================
+            var cvContainer = document.getElementById('cv-content');
+            var zoomLevelText = document.getElementById('zoom-level');
+            var currentScale = 1;
+            var undoStack = [];
+            var redoStack = [];
+            var saveTimeout = null;
+            var activeEditableTarget = null;
+            var freeDragMode = false;
+
+            // =========================================================
             // PHOTO & COLOR & EXPORT
             // =========================================================
             function triggerPhotoUpload(e) {
@@ -1114,25 +1126,6 @@
                 });
             }
 
-            function togglePhotoMenu(e) {
-                if (e) e.stopPropagation();
-                toggleMenu('photo-menu', 'photo-menu-btn');
-            }
-
-            function toggleTextMenu(e) {
-                if (e) e.stopPropagation();
-                toggleMenu('text-menu', 'text-menu-btn');
-            }
-
-            function toggleAddMenu(e) {
-                if (e) e.stopPropagation();
-                toggleMenu('add-menu', 'add-menu-btn');
-            }
-
-            function toggleIconMenu(e) {
-                if (e) e.stopPropagation();
-                toggleMenu('icon-menu', 'icon-menu-btn');
-            }
 
             function applyIconColors(data) {
 
@@ -1679,86 +1672,34 @@
             }
 
 
+            function togglePhotoMenu(e) { if (e) e.stopPropagation(); toggleMenu('photo-menu', 'photo-menu-btn'); }
+            function toggleTextMenu(e) { if (e) e.stopPropagation(); toggleMenu('text-menu', 'text-menu-btn'); }
+            function toggleAddMenu(e) { if (e) e.stopPropagation(); toggleMenu('add-menu', 'add-menu-btn'); }
+
             // =========================================================
-            // SIDEBAR MENUS
+            // SIDEBAR SHAPES & MENU
             // =========================================================
-            const SIDEBAR_SHAPES = [{
-                name: "Vague Organique", path: "M0,0 H80 C115,30 50,70 85,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Ligne Droite", path: "M0,0 H100 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Diagonale Droite", path: "M0,0 H100 L70,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Diagonale Gauche", path: "M0,0 H70 L100,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Courbe Convexe", path: "M0,0 H75 Q115,50 75,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Courbe Concave", path: "M0,0 H100 Q60,50 100,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Double Vague", path: "M0,0 H75 C100,25 50,75 75,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Pointe Triangle", path: "M0,0 H75 L100,50 L75,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Biseau Supérieur", path: "M0,0 H100 L70,30 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Biseau Inférieur", path: "M0,0 H70 V70 L100,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Arrondi Haut", path: "M0,0 H70 Q100,0 100,30 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Arrondi Bas", path: "M0,0 H100 V70 Q100,100 70,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Marche Escalier", path: "M0,0 H100 V40 H70 V60 H100 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Sablier", path: "M0,0 H100 L70,50 L100,100 H0 Z"
-            }
-
+            const SIDEBAR_SHAPES = [
+                { name: "Vague Organique", path: "M0,0 H80 C115,30 50,70 85,100 H0 Z" },
+                { name: "Ligne Droite", path: "M0,0 H100 V100 H0 Z" },
+                { name: "Diagonale Droite", path: "M0,0 H100 L70,100 H0 Z" },
+                { name: "Diagonale Gauche", path: "M0,0 H70 L100,100 H0 Z" },
+                { name: "Courbe Convexe", path: "M0,0 H75 Q115,50 75,100 H0 Z" },
+                { name: "Courbe Concave", path: "M0,0 H100 Q60,50 100,100 H0 Z" },
+                { name: "Double Vague", path: "M0,0 H75 C100,25 50,75 75,100 H0 Z" },
+                { name: "Pointe Triangle", path: "M0,0 H75 L100,50 L75,100 H0 Z" },
+                { name: "Biseau Supérieur", path: "M0,0 H100 L70,30 V100 H0 Z" },
+                { name: "Biseau Inférieur", path: "M0,0 H70 V70 L100,100 H0 Z" },
+                { name: "Arrondi Haut", path: "M0,0 H70 Q100,0 100,30 V100 H0 Z" },
+                { name: "Arrondi Bas", path: "M0,0 H100 V70 Q100,100 70,100 H0 Z" },
+                { name: "Marche Escalier", path: "M0,0 H100 V40 H70 V60 H100 V100 H0 Z" },
+                { name: "Sablier", path: "M0,0 H100 L70,50 L100,100 H0 Z" }
             ];
 
             function toggleSidebarMenu(e) {
                 if (e) e.stopPropagation();
-
                 if (toggleMenu('sidebar-menu', 'sidebar-menu-btn')) {
                     const grid = document.getElementById('sidebar-shapes-grid');
-
                     if (grid && grid.children.length === 0) {
                         SIDEBAR_SHAPES.forEach((shape, idx) => {
                             const sBtn = document.createElement('button');
@@ -1775,7 +1716,6 @@
             function setSidebarShape(idx) {
                 const shape = SIDEBAR_SHAPES[idx];
                 if (!shape) return;
-                const encodedPath = encodeURIComponent(shape.path).replace(/%20/g, ' '); // SVG paths allow spaces, but strict URL parsers prefer encoded ones. Actually encodeURIComponent handles it, replacing %20 with space is better for readability unless it breaks. Let's just use encodeURIComponent for safety, but keep spaces as %20 just in case.
                 const svgStr = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='${shape.path}' fill='black' /></svg>`;
                 const maskUrl = `url("data:image/svg+xml,${encodeURIComponent(svgStr)}")`;
                 document.documentElement.style.setProperty('--sidebar-mask', maskUrl);
@@ -1783,88 +1723,36 @@
             }
 
             function setSidebarWidth(val) {
-                document.getElementById('sidebar-width-val').innerText = val + '%';
+                const display = document.getElementById('sidebar-width-val');
+                if (display) display.innerText = val + '%';
                 document.documentElement.style.setProperty('--sidebar-width', val + '%');
                 saveState();
             }
 
-            const FOOTER_SHAPES = [{
-                name: "Vague Organique", path: "M0,100 L100,100 L100,15 C70,-15 30,50 0,0 Z"
-            }
-
-                ,
-            {
-                name: "Ligne Droite", path: "M0,100 L100,100 L100,0 L0,0 Z"
-            }
-
-                ,
-            {
-                name: "Diagonale Droite", path: "M0,100 L100,100 L100,30 L0,0 Z"
-            }
-
-                ,
-            {
-                name: "Diagonale Gauche", path: "M0,100 L100,100 L100,0 L0,30 Z"
-            }
-
-                ,
-            {
-                name: "Courbe Convexe", path: "M0,100 L100,100 L100,25 Q50,-15 0,25 Z"
-            }
-
-                ,
-            {
-                name: "Courbe Concave", path: "M0,100 L100,100 L100,0 Q50,40 0,0 Z"
-            }
-
-                ,
-            {
-                name: "Double Vague", path: "M0,100 L100,100 L100,25 C75,0 25,50 0,25 Z"
-            }
-
-                ,
-            {
-                name: "Pointe Triangle", path: "M0,100 L100,100 L100,25 L50,0 L0,25 Z"
-            }
-
-                ,
-            {
-                name: "Biseau Supérieur", path: "M0,100 L100,100 L100,30 L70,0 L0,0 Z"
-            }
-
-                ,
-            {
-                name: "Biseau Inférieur", path: "M0,100 L100,100 L100,0 L30,0 L0,30 Z"
-            }
-
-                ,
-            {
-                name: "Arrondi Haut", path: "M0,100 L100,100 L100,30 Q100,0 70,0 L0,0 Z"
-            }
-
-                ,
-            {
-                name: "Arrondi Bas", path: "M0,100 L100,100 L100,0 L30,0 Q0,0 0,30 Z"
-            }
-
-                ,
-            {
-                name: "Marche Escalier", path: "M0,100 L100,100 L100,0 L60,0 L60,30 L0,30 Z"
-            }
-
-                ,
-            {
-                name: "Sablier", path: "M0,100 L100,100 L100,0 L50,30 L0,0 Z"
-            }
-
+            // =========================================================
+            // FOOTER SHAPES & MENU
+            // =========================================================
+            const FOOTER_SHAPES = [
+                { name: "Vague Organique", path: "M0,100 L100,100 L100,15 C70,-15 30,50 0,0 Z" },
+                { name: "Ligne Droite", path: "M0,100 L100,100 L100,0 L0,0 Z" },
+                { name: "Diagonale Droite", path: "M0,100 L100,100 L100,30 L0,0 Z" },
+                { name: "Diagonale Gauche", path: "M0,100 L100,100 L100,0 L0,30 Z" },
+                { name: "Courbe Convexe", path: "M0,100 L100,100 L100,25 Q50,-15 0,25 Z" },
+                { name: "Courbe Concave", path: "M0,100 L100,100 L100,0 Q50,40 0,0 Z" },
+                { name: "Double Vague", path: "M0,100 L100,100 L100,25 C75,0 25,50 0,25 Z" },
+                { name: "Pointe Triangle", path: "M0,100 L100,100 L100,25 L50,0 L0,25 Z" },
+                { name: "Biseau Supérieur", path: "M0,100 L100,100 L100,30 L70,0 L0,0 Z" },
+                { name: "Biseau Inférieur", path: "M0,100 L100,100 L100,0 L30,0 L0,30 Z" },
+                { name: "Arrondi Haut", path: "M0,100 L100,100 L100,30 Q100,0 70,0 L0,0 Z" },
+                { name: "Arrondi Bas", path: "M0,100 L100,100 L100,0 L30,0 Q0,0 0,30 Z" },
+                { name: "Marche Escalier", path: "M0,100 L100,100 L100,0 L60,0 L60,30 L0,30 Z" },
+                { name: "Sablier", path: "M0,100 L100,100 L100,0 L50,30 L0,0 Z" }
             ];
 
             function toggleFooterMenu(e) {
                 if (e) e.stopPropagation();
-
                 if (toggleMenu('footer-menu', 'footer-menu-btn')) {
                     const grid = document.getElementById('footer-shapes-grid');
-
                     if (grid && grid.children.length === 0) {
                         FOOTER_SHAPES.forEach((shape, idx) => {
                             const sBtn = document.createElement('button');
@@ -1888,88 +1776,36 @@
             }
 
             function setFooterHeight(val) {
-                document.getElementById('footer-height-val').innerText = val + 'px';
+                const display = document.getElementById('footer-height-val');
+                if (display) display.innerText = val + 'px';
                 document.documentElement.style.setProperty('--footer-pt', val + 'px');
                 saveState();
             }
 
-            const TITLE_SHAPES = [{
-                name: "Vague Organique", path: "M0,0 H80 C115,30 50,70 85,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Ligne Droite", path: "M0,0 H100 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Diagonale Droite", path: "M0,0 H100 L70,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Diagonale Gauche", path: "M0,0 H70 L100,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Courbe Convexe", path: "M0,0 H75 Q115,50 75,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Courbe Concave", path: "M0,0 H100 Q60,50 100,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Double Vague", path: "M0,0 H75 C100,25 50,75 75,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Pointe Triangle", path: "M0,0 H75 L100,50 L75,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Biseau Supérieur", path: "M0,0 H100 L70,30 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Biseau Inférieur", path: "M0,0 H70 V70 L100,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Arrondi Haut", path: "M0,0 H70 Q100,0 100,30 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Arrondi Bas", path: "M0,0 H100 V70 Q100,100 70,100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Marche Escalier", path: "M0,0 H100 V40 H70 V60 H100 V100 H0 Z"
-            }
-
-                ,
-            {
-                name: "Sablier", path: "M0,0 H100 L70,50 L100,100 H0 Z"
-            }
-
+            // =========================================================
+            // TITLE SHAPES & MENU
+            // =========================================================
+            const TITLE_SHAPES = [
+                { name: "Vague Organique", path: "M0,0 H80 C115,30 50,70 85,100 H0 Z" },
+                { name: "Ligne Droite", path: "M0,0 H100 V100 H0 Z" },
+                { name: "Diagonale Droite", path: "M0,0 H100 L70,100 H0 Z" },
+                { name: "Diagonale Gauche", path: "M0,0 H70 L100,100 H0 Z" },
+                { name: "Courbe Convexe", path: "M0,0 H75 Q115,50 75,100 H0 Z" },
+                { name: "Courbe Concave", path: "M0,0 H100 Q60,50 100,100 H0 Z" },
+                { name: "Double Vague", path: "M0,0 H75 C100,25 50,75 75,100 H0 Z" },
+                { name: "Pointe Triangle", path: "M0,0 H75 L100,50 L75,100 H0 Z" },
+                { name: "Biseau Supérieur", path: "M0,0 H100 L70,30 V100 H0 Z" },
+                { name: "Biseau Inférieur", path: "M0,0 H70 V70 L100,100 H0 Z" },
+                { name: "Arrondi Haut", path: "M0,0 H70 Q100,0 100,30 V100 H0 Z" },
+                { name: "Arrondi Bas", path: "M0,0 H100 V70 Q100,100 70,100 H0 Z" },
+                { name: "Marche Escalier", path: "M0,0 H100 V40 H70 V60 H100 V100 H0 Z" },
+                { name: "Sablier", path: "M0,0 H100 L70,50 L100,100 H0 Z" }
             ];
 
             function toggleTitleMenu(e) {
                 if (e) e.stopPropagation();
-
                 if (toggleMenu('title-menu', 'title-menu-btn')) {
                     const grid = document.getElementById('title-shapes-grid');
-
                     if (grid && grid.children.length === 0) {
                         TITLE_SHAPES.forEach((shape, idx) => {
                             const sBtn = document.createElement('button');
@@ -1993,100 +1829,82 @@
             }
 
             function setTitleHeight(val) {
-                document.getElementById('title-height-val').innerText = val + 'px';
+                const display = document.getElementById('title-height-val');
+                if (display) display.innerText = val + 'px';
                 document.documentElement.style.setProperty('--title-pt', val + 'px');
                 saveState();
             }
 
-            // Close menus when clicking outside
-            // Close menus when clicking outside
+            // Global click handler for selecting blocks and closing menus
             document.addEventListener('click', function (e) {
                 const menuIds = ['photo-menu', 'text-menu', 'sidebar-menu', 'footer-menu', 'title-menu', 'add-menu'];
                 const btnIds = ['photo-menu-btn', 'text-menu-btn', 'sidebar-menu-btn', 'footer-menu-btn', 'title-menu-btn', 'add-menu-btn'];
 
-                // SÉLECTION / DÉSÉLECTION globale des blocs
                 const clickedBlock = e.target.closest('.experience-item, .added-text-block');
                 const clickedTools = e.target.closest('.block-resize-handle, button');
 
                 if (clickedBlock && !clickedTools) {
-
-                    // On a cliqué sur un bloc
                     if (!clickedBlock.classList.contains('block-selected')) {
                         document.querySelectorAll('.block-selected').forEach(sel => sel.classList.remove('block-selected'));
                         clickedBlock.classList.add('block-selected');
-                        ensureSettingsButtons(); // S'assurer que les outils existent
+                        if (typeof ensureSettingsButtons === 'function') ensureSettingsButtons();
                     }
-                }
-
-                else if (!clickedBlock && !clickedTools) {
-                    // On a cliqué dans le vide
+                } else if (!clickedBlock && !clickedTools) {
                     document.querySelectorAll('.block-selected').forEach(sel => sel.classList.remove('block-selected'));
                 }
 
                 let clickedInsideSpecific = false;
-
                 menuIds.forEach((mId, idx) => {
                     const menu = document.getElementById(mId);
                     const btn = document.getElementById(btnIds[idx]);
-
                     if ((menu && menu.contains(e.target)) || (btn && btn.contains(e.target))) {
                         clickedInsideSpecific = true;
                     }
                 });
-
-                if (!clickedInsideSpecific) {
-                    closeAllMenus();
-                }
+                if (!clickedInsideSpecific) closeAllMenus();
             });
 
-            // Délégation d'événements pour le redimensionnement (mousedown)
+            // Resizing handles logic
             document.addEventListener('mousedown', function (e) {
                 if (e.target.classList.contains('handle-width')) {
                     const block = e.target.closest('.experience-item, .added-text-block');
                     if (block) initResize(e, block.id, 'width');
-                }
-
-                else if (e.target.classList.contains('handle-margin-top')) {
+                } else if (e.target.classList.contains('handle-margin-top')) {
                     const block = e.target.closest('.experience-item, .added-text-block');
                     if (block) initResize(e, block.id, 'top');
-                }
-
-                else if (e.target.classList.contains('handle-margin-bottom')) {
+                } else if (e.target.classList.contains('handle-margin-bottom')) {
                     const block = e.target.closest('.experience-item, .added-text-block');
                     if (block) initResize(e, block.id, 'bottom');
                 }
             });
 
             // =========================================================
-            // EXPORT PDF (clean, no browser headers)
-            // =========================================================
-            // =========================================================
             // EXPORT PDF LOGIC
             // =========================================================
             function openPdfModal() {
                 const modal = document.getElementById('pdf-modal');
+                if (!modal) return;
                 modal.style.display = 'flex';
                 setTimeout(() => modal.classList.add('active'), 10);
             }
 
             function closePdfModal() {
                 const modal = document.getElementById('pdf-modal');
+                if (!modal) return;
                 modal.classList.remove('active');
                 setTimeout(() => modal.style.display = 'none', 300);
             }
 
             function generatePdf(type) {
                 const loader = document.getElementById('pdf-loader');
-                loader.classList.add('active');
+                if (loader) loader.classList.add('active');
 
-                // 1. Prepare UI
-                const wasDrag = freeDragMode;
+                const wasDrag = typeof freeDragMode !== 'undefined' && freeDragMode;
                 if (wasDrag) toggleDragMode();
                 if (document.activeElement) document.activeElement.blur();
                 window.getSelection().removeAllRanges();
                 window.scrollTo(0, 0);
 
-                // 2. Prepare Print Container in DOM
                 let printContainer = document.getElementById('pdf-gen-container');
                 if (printContainer) printContainer.remove();
 
@@ -2094,80 +1912,44 @@
                 printContainer.id = 'pdf-gen-container';
                 document.body.appendChild(printContainer);
 
-                // Helper: Clone and clean
                 const prepareClone = (id) => {
                     const source = document.getElementById(id);
+                    if (!source) return document.createElement('div');
                     const clone = source.cloneNode(true);
-                    // We use a different ID for the clone to avoid duplication issues if needed, 
-                    // but for style matching we might need to keep it unless we swap classes.
-                    // Let's keep ID but since we hide the original, it should be fine.
-
                     Object.assign(clone.style, {
-                        margin: '0',
-                        padding: '0',
-                        boxShadow: 'none',
-                        transform: 'none',
-                        width: '210mm',
-                        height: '297mm',
-                        minHeight: '297mm',
-                        position: 'relative',
-                        left: 'auto',
-                        top: 'auto',
-                        overflow: 'hidden',
-                        background: 'white',
-                        display: 'flex'
+                        margin: '0', padding: '0', boxShadow: 'none', transform: 'none',
+                        width: '210mm', height: '297mm', minHeight: '297mm',
+                        position: 'relative', left: 'auto', top: 'auto',
+                        overflow: 'hidden', background: 'white', display: 'flex'
                     });
-
-                    // Remove interactive elements
                     const buttons = clone.querySelectorAll('.add-btn, .delete-btn, .drag-handle, .ui-control');
                     buttons.forEach(b => b.remove());
-
                     return clone;
-                }
+                };
 
-                    ;
-
-                // 3. Assemble Content
                 const originalTitle = document.title;
-
                 if (type === 'cv') {
                     printContainer.appendChild(prepareClone('cv-content'));
                     document.title = 'CV_Carole_Jacquelin';
-                }
-
-                else if (type === 'cl') {
+                } else if (type === 'cl') {
                     printContainer.appendChild(prepareClone('cl-content'));
                     document.title = 'Lettre_Motivation_Carole_Jacquelin';
-                }
-
-                else if (type === 'both') {
+                } else if (type === 'both') {
                     document.title = 'Dossier_Candidature_Carole_Jacquelin';
                     printContainer.appendChild(prepareClone('cv-content'));
                     printContainer.appendChild(prepareClone('cl-content'));
                 }
 
-                // 4. Print via Native Browser Dialog
-                // Increase timeout to 800ms to ensure fonts and masks are rendered
                 setTimeout(() => {
                     window.print();
-
-                    // Cleanup after dialog
                     setTimeout(() => {
                         document.title = originalTitle;
-                        finalize();
-                    }
-
-                        , 1000);
-                }
-
-                    , 800);
-
-                function finalize() {
-                    if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
-                    if (wasDrag) toggleDragMode();
-                    closePdfModal();
-                    loader.classList.remove('active');
-                }
+                        if (printContainer.parentNode) printContainer.parentNode.removeChild(printContainer);
+                        if (wasDrag) toggleDragMode();
+                        closePdfModal();
+                        if (loader) loader.classList.remove('active');
+                    }, 1000);
+                }, 800);
             }
 
             function changeColor(color) {
@@ -2184,68 +1966,33 @@
             function changeFontSize(delta) {
                 const selection = window.getSelection();
                 if (!selection.rangeCount) return;
-
-                // Use a unique tag to identify the selection
-                const span = document.createElement('span');
-                const range = selection.getRangeAt(0);
-
-                // Get current font size of the parent if possible
-                let currentSize = 14; // Default
-
-                if (range.commonAncestorContainer) {
-                    const parent = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
-                    currentSize = parseFloat(window.getComputedStyle(parent).fontSize);
-                }
-
-                const newSize = Math.max(6, currentSize + (delta * 2)) + 'px';
-
-                // Apply size using CSS
                 document.execCommand('styleWithCSS', false, true);
-                document.execCommand('fontSize', false, '7'); // Temp size
-
-                // Find elements with the temp size and replace with our pixel value
+                const parent = selection.getRangeAt(0).commonAncestorContainer.nodeType === 1
+                    ? selection.getRangeAt(0).commonAncestorContainer
+                    : selection.getRangeAt(0).commonAncestorContainer.parentElement;
+                const currentSize = parseFloat(window.getComputedStyle(parent).fontSize) || 14;
+                const newSize = Math.max(6, currentSize + (delta * 2)) + 'px';
+                document.execCommand('fontSize', false, '7');
                 const fontElements = document.getElementsByTagName("font");
-
                 for (let i = 0; i < fontElements.length; i++) {
                     if (fontElements[i].size === "7") {
                         fontElements[i].removeAttribute("size");
                         fontElements[i].style.fontSize = newSize;
                     }
                 }
-
-                // Also check for spans created by styleWithCSS
                 const spans = document.getElementsByTagName("span");
-
                 for (let i = 0; i < spans.length; i++) {
-                    if (spans[i].style.fontSize === "xxx-large") {
-                        // This is what size 7 usually maps to
-                        spans[i].style.fontSize = newSize;
-                    }
+                    if (spans[i].style.fontSize === "xxx-large") spans[i].style.fontSize = newSize;
                 }
-
                 saveState();
             }
 
-            // =========================================================
-            // ZOOM & HISTORY
-            // =========================================================
-            let currentScale = 1;
-            const cvContainer = document.getElementById('cv-content');
-            const zoomLevelText = document.getElementById('zoom-level');
-
-            let undoStack = [];
-            let redoStack = [];
-            let saveTimeout = null;
-
-            // History management unified in the main saveState below
 
             function undo() {
                 if (undoStack.length <= 1) return;
                 const current = undoStack.pop();
                 redoStack.push(current);
-
-                const prev = undoStack[undoStack.length - 1];
-                applyState(prev);
+                applyState(undoStack[undoStack.length - 1]);
             }
 
             function redo() {
@@ -2256,75 +2003,47 @@
             }
 
             function applyState(state) {
+                if (!state) return;
+                const cv = document.getElementById('cv-content');
+                const cl = document.getElementById('cl-content');
+                if (state.cvHtml && cv) cv.innerHTML = state.cvHtml;
+                else if (state.html && cv) cv.innerHTML = state.html;
+                if (state.clHtml && cl) cl.innerHTML = state.clHtml;
 
-                // Temporarily ignore changes during apply
-                if (state.cvHtml) {
-                    cvContainer.innerHTML = state.cvHtml;
-                }
-
-                else if (state.html) {
-                    cvContainer.innerHTML = state.html;
-                }
-
-                if (state.clHtml) {
-                    document.getElementById('cl-content').innerHTML = state.clHtml;
-                }
-
-                // Restore colors
                 document.documentElement.style.setProperty('--primary-blue', state.primaryColor);
                 document.documentElement.style.setProperty('--massy-navy', state.primaryColor);
-                document.getElementById('color-picker').value = state.primaryColor;
+                const cp = document.getElementById('color-picker');
+                if (cp) cp.value = state.primaryColor;
 
-                // Re-init drag handles if mode is active
-                if (freeDragMode) {
-                    // Remove any existing handles first to avoid duplicates
-                    const containers = document.querySelectorAll('.cv-container');
-
-                    containers.forEach(canvas => {
+                if (typeof freeDragMode !== 'undefined' && freeDragMode) {
+                    document.querySelectorAll('.cv-container').forEach(canvas => {
                         canvas.querySelectorAll('.free-drag-handle').forEach(h => h.remove());
-
-                        DRAGGABLE_SELECTORS.forEach(sel => {
-                            canvas.querySelectorAll(sel).forEach(el => {
-                                el.dataset.dragInit = ""; // Force re-init
-                                addDragHandle(el);
+                        if (typeof DRAGGABLE_SELECTORS !== 'undefined') {
+                            DRAGGABLE_SELECTORS.forEach(sel => {
+                                canvas.querySelectorAll(sel).forEach(el => {
+                                    el.dataset.dragInit = "";
+                                    if (typeof addDragHandle === 'function') addDragHandle(el);
+                                });
                             });
-                        });
+                        }
                     });
                 }
-
-                // Garantir la restauration des outils de réglage après application de l'état
-                ensureSettingsButtons();
-
+                if (typeof ensureSettingsButtons === 'function') ensureSettingsButtons();
                 updateUndoRedoButtons();
             }
 
             function updateUndoRedoButtons() {
                 const undoBtn = document.getElementById('undo-btn');
                 const redoBtn = document.getElementById('redo-btn');
-
-                if (undoStack.length > 1) {
-                    undoBtn.disabled = false;
-                    undoBtn.style.opacity = '1';
-                    undoBtn.style.cursor = 'pointer';
-                }
-
-                else {
-                    undoBtn.disabled = true;
-                    undoBtn.style.opacity = '0.5';
-                    undoBtn.style.cursor = 'not-allowed';
-                }
-
-                if (redoStack.length > 0) {
-                    redoBtn.disabled = false;
-                    redoBtn.style.opacity = '1';
-                    redoBtn.style.cursor = 'pointer';
-                }
-
-                else {
-                    redoBtn.disabled = true;
-                    redoBtn.style.opacity = '0.5';
-                    redoBtn.style.cursor = 'not-allowed';
-                }
+                if (!undoBtn || !redoBtn) return;
+                const hasUndo = undoStack.length > 1;
+                undoBtn.disabled = !hasUndo;
+                undoBtn.style.opacity = hasUndo ? '1' : '0.5';
+                undoBtn.style.cursor = hasUndo ? 'pointer' : 'not-allowed';
+                const hasRedo = redoStack.length > 0;
+                redoBtn.disabled = !hasRedo;
+                redoBtn.style.opacity = hasRedo ? '1' : '0.5';
+                redoBtn.style.cursor = hasRedo ? 'pointer' : 'not-allowed';
             }
 
             function updateZoom() {
@@ -2381,13 +2100,16 @@
                         inner.style.setProperty('display', 'flex', 'important');
                     }
                 }
-                zoomLevelText.innerText = Math.round(currentScale * 100) + '%';
+                if (zoomLevelText) zoomLevelText.innerText = Math.round(currentScale * 100) + '%';
             }
 
-            function autoFit() {
-                const isMobile = window.innerWidth <= 850;
-                const cvWidth = 794;
+            function zoomIn() { if (currentScale < 2.0) { currentScale += 0.1; updateZoom(); } }
+            function zoomOut() { if (currentScale > 0.3) { currentScale -= 0.1; updateZoom(); } }
+            function resetZoom() { currentScale = 1; updateZoom(); }
 
+            function autoFit() {
+                const cvWidth = 794;
+                const isMobile = window.innerWidth <= 850;
                 let targetScale;
                 if (isMobile) {
                     targetScale = window.innerWidth / cvWidth;
@@ -2396,18 +2118,13 @@
                     const count = Array.from(visibleContainers).filter(c => c.offsetParent !== null).length || 1;
                     const gap = count > 1 ? 40 * (count - 1) : 0;
                     const totalWorkspaceWidth = cvWidth * count + gap;
-
                     const availableWidth = window.innerWidth - 80;
                     const availableHeight = window.innerHeight - 180;
                     const scaleX = availableWidth / totalWorkspaceWidth;
                     const scaleY = availableHeight / 1123;
                     targetScale = Math.min(scaleX, scaleY);
                 }
-
-                if (targetScale > 1.2) targetScale = 1.2;
-                if (targetScale < 0.2) targetScale = 0.2;
-
-                currentScale = targetScale;
+                currentScale = Math.min(1.2, Math.max(0.2, targetScale));
                 updateZoom();
             }
 
@@ -2419,7 +2136,7 @@
             // This NEVER breaks layout because transforms don't affect flow.
             // Each drag ACCUMULATES on top of the previous offset.
             // =========================================================
-            let freeDragMode = false;
+
             let snapToGrid = false;
             const GRID_SIZE = 8; // px — snap grid cell size (finer grid)
             let activeDragEl = null;
